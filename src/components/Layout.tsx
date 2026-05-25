@@ -13,12 +13,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const location = useLocation()
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    if (typeof window !== "undefined") {
-      return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
-    }
-    return "light"
-  })
+  const [theme, setTheme] = useState<"light" | "dark">("light")
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme)
