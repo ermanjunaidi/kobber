@@ -172,6 +172,9 @@ export default function Layout({ children }: { children: ReactNode }) {
                   {item.label}
                 </Link>
               ))}
+                <Link to="/admin" style={{ color: "var(--k-text-faint)", fontSize: ".8rem" }}>
+                  Admin
+                </Link>
             </div>
           </div>
           <div>

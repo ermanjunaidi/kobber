@@ -1,6 +1,41 @@
+import { useState, useEffect } from "react"
 import { Link } from "react-router"
+import { api, type Stats, type NewsItem, type Campaign } from "@/lib/api"
+import { formatRp } from "@/lib/utils"
 
 export default function Beranda() {
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [news, setNews] = useState<NewsItem[]>([])
+  const [campaign, setCampaign] = useState<Campaign | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [statsData, newsData, campaignData] = await Promise.all([
+          api.stats(),
+          api.news.list(),
+          api.campaign(),
+        ])
+        setStats(statsData)
+        setNews(newsData)
+        setCampaign(campaignData)
+      } catch (e) {
+        console.error("Failed to load dashboard data:", e)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  const tagColors: Record<string, string> = {
+    green: "k-accent-green",
+    blue: "k-accent-blue",
+    gold: "k-accent-gold",
+    danger: "k-accent-danger",
+  }
+
   return (
     <div className="k-page">
       {/* Hero */}
@@ -23,15 +58,15 @@ export default function Beranda() {
             </div>
             <div className="k-stats">
               <div className="k-metric">
-                <strong>57+</strong>
+                <strong>{stats ? `${stats.organizations}+` : "57+"}</strong>
                 <span>Lembaga kolaborasi</span>
               </div>
               <div className="k-metric">
-                <strong>1.248</strong>
+                <strong>{stats ? stats.beneficiaries.toLocaleString("id-ID") : "1.248"}</strong>
                 <span>Penerima manfaat</span>
               </div>
               <div className="k-metric">
-                <strong>Rp 286jt</strong>
+                <strong>{stats ? formatRp(stats.fundingRp) : "Rp 286jt"}</strong>
                 <span>Dukungan terpetakan</span>
               </div>
             </div>
@@ -99,9 +134,9 @@ export default function Beranda() {
           </div>
           <div className="k-panel k-panel-accent-gold">
             <h2>Kampanye donasi aktif</h2>
-            <p>Embed progress Kitabisa dan tombol donasi menonjol di seluruh halaman.</p>
+            <p>{campaign ? campaign.description : "Embed progress Kitabisa dan tombol donasi menonjol di seluruh halaman."}</p>
             <div className="k-kpi-bar">
-              <i style={{ width: "68%" }} />
+              <i style={{ width: `${campaign ? campaign.percentage : 68}%` }} />
             </div>
             <div
               style={{
@@ -111,8 +146,8 @@ export default function Beranda() {
                 fontWeight: 700,
               }}
             >
-              <span>Rp 34.000.000</span>
-              <span>68%</span>
+              <span>{campaign ? formatRp(campaign.collected) : "Rp 34.000.000"}</span>
+              <span>{campaign ? `${Math.round(campaign.percentage)}%` : "68%"}</span>
             </div>
           </div>
         </div>
@@ -123,21 +158,19 @@ export default function Beranda() {
         <div className="k-container">
           <h2>Berita dan kisah lapangan</h2>
           <div className="k-news-grid" style={{ marginTop: "1rem" }}>
-            <article className="k-card">
-              <span className="k-tag k-accent-green">Berita terbaru</span>
-              <h3>Forum lintas sektor menyusun agenda stunting</h3>
-              <p>Card artikel utama dengan thumbnail, tanggal, dan CTA baca selengkapnya.</p>
-            </article>
-            <article className="k-card">
-              <span className="k-tag k-accent-blue">Kegiatan</span>
-              <h3>Pelatihan kader posyandu</h3>
-              <p>Ringkasan kegiatan dengan dokumentasi dan tautan detail.</p>
-            </article>
-            <article className="k-card">
-              <span className="k-tag k-accent-gold">Kisah perubahan</span>
-              <h3>Cerita ibu penerima manfaat</h3>
-              <p>Testimoni singkat dengan nama dan lokasi opsional.</p>
-            </article>
+            {loading ? (
+              <p className="k-text-muted">Memuat berita...</p>
+            ) : (
+              news.map((item) => (
+                <article className="k-card" key={item.id}>
+                  <span className={`k-tag ${tagColors[item.tagColor] || "k-accent-green"}`}>
+                    {item.tag}
+                  </span>
+                  <h3>{item.title}</h3>
+                  <p>{item.summary}</p>
+                </article>
+              ))
+            )}
           </div>
           <div className="k-story-grid" style={{ marginTop: "1rem" }}>
             <div className="k-quote">

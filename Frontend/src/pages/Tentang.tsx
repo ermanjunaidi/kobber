@@ -1,4 +1,21 @@
+import { useState, useEffect } from "react"
+import { api, type Member } from "@/lib/api"
+
 export default function Tentang() {
+  const [members, setMembers] = useState<Member[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    api.members.list()
+      .then(setMembers)
+      .catch((e) => {
+        console.error("Failed to load members:", e)
+        setError("Gagal memuat data anggota")
+      })
+      .finally(() => setLoading(false))
+  }, [])
+
   return (
     <div className="k-page">
       <section className="k-subhero">
@@ -77,18 +94,18 @@ export default function Tentang() {
                 <span className="k-tag">Ormas</span>
               </div>
               <div className="k-grid-3">
-                <div className="k-card">
-                  <strong>RSUD Brebes</strong>
-                  <p>Kontribusi: rujukan & layanan kolaboratif.</p>
-                </div>
-                <div className="k-card">
-                  <strong>Universitas Mitra</strong>
-                  <p>Kontribusi: riset, magang, data.</p>
-                </div>
-                <div className="k-card">
-                  <strong>NGO Lokal</strong>
-                  <p>Kontribusi: pendampingan warga.</p>
-                </div>
+                {loading ? (
+                  <p className="k-text-muted">Memuat data anggota...</p>
+                ) : error ? (
+                  <p className="k-text-muted" style={{ color: "var(--k-red, #721c24)" }}>{error}</p>
+                ) : (
+                  members.map((member) => (
+                    <div className="k-card" key={member.id}>
+                      <strong>{member.name}</strong>
+                      <p>{member.contribution}</p>
+                    </div>
+                  ))
+                )}
               </div>
             </section>
           </div>
