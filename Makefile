@@ -1,4 +1,30 @@
-.PHONY: up down start up-tunnel logs tunnel build build-dev reset dev-backend dev-frontend
+.PHONY: up down start up-tunnel logs tunnel build build-dev reset dev-backend dev-frontend dev
+
+# Run everything locally with one command:
+#   Database in Docker, backend & frontend on host
+#
+# Usage:
+#   make dev
+dev:
+	@echo "Starting PostgreSQL in Docker..."
+	docker compose up postgres -d --wait
+	@echo ""
+	@echo "========================================="
+	@echo "  Installing frontend dependencies..."
+	@echo "========================================="
+	cd Frontend && bun install
+	@echo ""
+	@echo "========================================="
+	@echo "  Starting backend & frontend locally..."
+	@echo "========================================="
+	@echo ""
+	@# Kill leftover processes on dev ports
+	@lsof -ti:8080 2>/dev/null | xargs kill -9 2>/dev/null; true
+	@lsof -ti:5173 2>/dev/null | xargs kill -9 2>/dev/null; true
+	@trap 'kill 0' EXIT; \
+	cd backend && go run main.go & \
+	cd Frontend && bun run dev & \
+	wait
 
 # Build and start all services (postgres + backend + frontend)
 up:

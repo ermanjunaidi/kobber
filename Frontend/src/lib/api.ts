@@ -31,6 +31,7 @@ export interface NewsItem {
   summary: string
   tag: string
   tagColor: string
+  imageUrl: string
   publishedAt: string
 }
 
@@ -78,11 +79,31 @@ export const api = {
   news: {
     list: () => fetchJSON<NewsItem[]>("/news"),
     get: (id: number) => fetchJSON<NewsItem>(`/news/${id}`),
-    create: (data: { title: string; summary: string; tag: string; tagColor: string }) =>
+    create: (data: { title: string; summary: string; tag: string; tagColor: string; imageUrl?: string }) =>
       fetchJSON<NewsItem>("/news", { method: "POST", body: JSON.stringify(data) }),
-    update: (id: number, data: Partial<{ title: string; summary: string; tag: string; tagColor: string }>) =>
+    update: (id: number, data: Partial<{ title: string; summary: string; tag: string; tagColor: string; imageUrl: string }>) =>
       fetchJSON<NewsItem>(`/news/${id}`, { method: "PUT", body: JSON.stringify(data) }),
     delete: (id: number) => fetchJSON<{ message: string }>(`/news/${id}`, { method: "DELETE" }),
+    uploadImage: (id: number, file: File) => {
+      const token = getAuthToken()
+      const formData = new FormData()
+      formData.append("image", file)
+      const headers: Record<string, string> = {}
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`
+      }
+      return fetch(`${API_BASE}/news/${id}/image`, {
+        method: "POST",
+        headers,
+        body: formData,
+      }).then(async (res) => {
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: res.statusText }))
+          throw new Error(err.error || `HTTP ${res.status}`)
+        }
+        return res.json() as Promise<{ imageUrl: string; message: string }>
+      })
+    },
   },
 
   members: {

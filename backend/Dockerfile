@@ -16,6 +16,11 @@ RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app
 COPY --from=builder /app/server .
 
+# Create uploads directory for news images
+RUN mkdir -p /app/uploads
+
+VOLUME ["/app/uploads"]
+
 EXPOSE 8080
 
 CMD ["./server"]

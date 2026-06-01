@@ -1,8 +1,44 @@
-import { useState, useEffect, type ReactNode } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router"
 import { api, type Stats, type NewsItem, type Member, type Donation, type ContactSubmission, type Campaign } from "@/lib/api"
 import { formatRp } from "@/lib/utils"
 import { useAuth } from "@/lib/auth"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import {
+  Image,
+  Plus,
+  Pencil,
+  Trash2,
+  RefreshCw,
+  LogOut,
+  Upload,
+  X,
+} from "lucide-react"
 
 interface AdminOverview {
   totalNews: number
@@ -19,8 +55,8 @@ interface AdminOverview {
 
 type Tab = "overview" | "news" | "members" | "donations" | "contacts" | "campaign" | "stats"
 
-const DEFAULT_FORM = { title: "", summary: "", tag: "", tagColor: "green" }
-const DEFAULT_MEMBER = { name: "", category: "", contribution: "" }
+const DEFAULT_NEWS_FORM = { title: "", summary: "", tag: "", tagColor: "green", imageUrl: "" }
+const DEFAULT_MEMBER_FORM = { name: "", category: "", contribution: "" }
 
 export default function Admin() {
   const { logout } = useAuth()
@@ -37,12 +73,16 @@ export default function Admin() {
   const [error, setError] = useState<string | null>(null)
 
   // Modal / form state
-  const [showModal, setShowModal] = useState(false)
+  const [showNewsDialog, setShowNewsDialog] = useState(false)
+  const [showMemberDialog, setShowMemberDialog] = useState(false)
   const [modalMode, setModalMode] = useState<"add" | "edit">("add")
   const [editingId, setEditingId] = useState<number | null>(null)
-  const [newsForm, setNewsForm] = useState(DEFAULT_FORM)
-  const [memberForm, setMemberForm] = useState(DEFAULT_MEMBER)
+  const [newsForm, setNewsForm] = useState(DEFAULT_NEWS_FORM)
+  const [memberForm, setMemberForm] = useState(DEFAULT_MEMBER_FORM)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function loadAll() {
     setLoading(true)
@@ -62,7 +102,6 @@ export default function Admin() {
       setDonations(d)
       setContacts(c)
       setStats(s)
-      // Get campaign
       try { setCampaign(await api.campaign()) } catch {}
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal memuat data")
@@ -74,16 +113,18 @@ export default function Admin() {
   useEffect(() => { loadAll() }, [])
 
   // --- News CRUD ---
-  function openNewsModal(mode: "add" | "edit", item?: NewsItem) {
+  function openNewsDialog(mode: "add" | "edit", item?: NewsItem) {
     setModalMode(mode)
+    setPreviewImage(null)
     if (mode === "edit" && item) {
-      setNewsForm({ title: item.title, summary: item.summary, tag: item.tag, tagColor: item.tagColor })
+      setNewsForm({ title: item.title, summary: item.summary, tag: item.tag, tagColor: item.tagColor, imageUrl: item.imageUrl || "" })
       setEditingId(item.id)
+      if (item.imageUrl) setPreviewImage(item.imageUrl)
     } else {
-      setNewsForm(DEFAULT_FORM)
+      setNewsForm(DEFAULT_NEWS_FORM)
       setEditingId(null)
     }
-    setShowModal(true)
+    setShowNewsDialog(true)
   }
 
   async function saveNews(e: React.FormEvent) {
@@ -95,12 +136,43 @@ export default function Admin() {
       } else if (editingId !== null) {
         await api.news.update(editingId, newsForm)
       }
-      setShowModal(false)
+      setShowNewsDialog(false)
       await loadAll()
     } catch (e) {
       alert(e instanceof Error ? e.message : "Gagal menyimpan")
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !editingId) return
+
+    // Validate file type
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+    if (!allowedTypes.includes(file.type)) {
+      alert("Hanya file JPG, PNG, WebP, dan GIF yang diizinkan")
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Ukuran file maksimal 5MB")
+      return
+    }
+
+    setUploading(true)
+    try {
+      const result = await api.news.uploadImage(editingId, file)
+      setNewsForm(prev => ({ ...prev, imageUrl: result.imageUrl }))
+      setPreviewImage(result.imageUrl)
+      await loadAll()
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal mengupload gambar")
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
     }
   }
 
@@ -110,16 +182,16 @@ export default function Admin() {
   }
 
   // --- Members CRUD ---
-  function openMemberModal(mode: "add" | "edit", item?: Member) {
+  function openMemberDialog(mode: "add" | "edit", item?: Member) {
     setModalMode(mode)
     if (mode === "edit" && item) {
       setMemberForm({ name: item.name, category: item.category, contribution: item.contribution })
       setEditingId(item.id)
     } else {
-      setMemberForm(DEFAULT_MEMBER)
+      setMemberForm(DEFAULT_MEMBER_FORM)
       setEditingId(null)
     }
-    setShowModal(true)
+    setShowMemberDialog(true)
   }
 
   async function saveMember(e: React.FormEvent) {
@@ -131,7 +203,7 @@ export default function Admin() {
       } else if (editingId !== null) {
         await api.members.update(editingId, memberForm)
       }
-      setShowModal(false)
+      setShowMemberDialog(false)
       await loadAll()
     } catch (e) {
       alert(e instanceof Error ? e.message : "Gagal menyimpan")
@@ -170,7 +242,9 @@ export default function Admin() {
       <div className="k-page" style={{ padding: "3rem 0" }}>
         <div className="k-container">
           <p style={{ color: "var(--k-danger)" }}>{error}</p>
-          <button className="k-btn k-btn-primary" onClick={loadAll}>Coba lagi</button>
+          <Button variant="ghost" size="sm" onClick={loadAll}>
+          <RefreshCw /> Coba lagi
+        </Button>
         </div>
       </div>
     )
@@ -180,223 +254,229 @@ export default function Admin() {
     <div className="k-page" style={{ padding: "2rem 0" }}>
       <div className="k-container">
         {/* Header */}
-        <div className="k-flex k-items-center k-justify-between k-flex-wrap" style={{ marginBottom: "1.5rem" }}>
+        <div className="flex items-center justify-between flex-wrap gap-4" style={{ marginBottom: "1.5rem" }}>
           <div>
             <h1 style={{ margin: 0 }}>Admin Dashboard</h1>
             <p className="k-text-muted" style={{ marginTop: ".25rem" }}>Kelola semua konten KOBBER</p>
           </div>
-          <div className="k-flex k-gap-3">
-            <button className="k-btn k-btn-ghost" onClick={loadAll} style={{ fontSize: ".85rem" }}>
-              ↻ Refresh
-            </button>
-            <button
-              className="k-btn k-btn-ghost"
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={loadAll}>
+              <RefreshCw /> Refresh
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => { logout(); navigate("/admin/login") }}
-              style={{ fontSize: ".85rem", color: "var(--k-danger)" }}
+              className="text-destructive hover:text-destructive"
             >
-              Logout
-            </button>
+              <LogOut /> Logout
+            </Button>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="k-flex k-flex-wrap k-gap-3" style={{ marginBottom: "1.5rem", borderBottom: "1px solid var(--k-border)", paddingBottom: ".75rem" }}>
+        <div className="flex flex-wrap gap-2" style={{ marginBottom: "1.5rem", borderBottom: "1px solid var(--k-border)", paddingBottom: ".75rem" }}>
           {(Object.keys(tabLabels) as Tab[]).map((tab) => (
-            <button
+            <Button
               key={tab}
+              variant={activeTab === tab ? "default" : "ghost"}
+              size="sm"
               onClick={() => setActiveTab(tab)}
-              className={`k-btn ${activeTab === tab ? "k-btn-primary" : "k-btn-ghost"}`}
-              style={{ fontSize: ".85rem", padding: ".5rem 1rem" }}
             >
               {tabLabels[tab]}
-            </button>
+            </Button>
           ))}
         </div>
 
         {/* Tab Content */}
         {activeTab === "overview" && overview && <OverviewTab overview={overview} donations={donations} contacts={contacts} news={news} members={members} />}
         {activeTab === "news" && (
-          <DataTableTab
-            title="Berita"
-            onAdd={() => openNewsModal("add")}
-            columns={["ID", "Judul", "Ringkasan", "Tag", "Tanggal", "Aksi"]}
-            renderRow={(n: NewsItem) => (
-              <tr key={n.id}>
-                <td className="k-text-muted k-tiny">{n.id}</td>
-                <td><strong>{n.title}</strong></td>
-                <td><span className="k-text-muted" style={{ fontSize: ".85rem" }}>{n.summary.slice(0, 60)}...</span></td>
-                <td><span className="k-tag" style={{ fontSize: ".75rem" }}>{n.tag}</span></td>
-                <td className="k-tiny k-text-muted">{new Date(n.publishedAt).toLocaleDateString("id-ID")}</td>
-                <td>
-                  <div className="k-flex k-gap-3">
-                    <button className="k-btn k-btn-ghost" style={{ padding: ".3rem .6rem", fontSize: ".8rem" }} onClick={() => openNewsModal("edit", n)}>Edit</button>
-                    <button className="k-btn k-btn-ghost" style={{ padding: ".3rem .6rem", fontSize: ".8rem", color: "var(--k-danger)" }} onClick={() => deleteNews(n.id)}>Hapus</button>
-                  </div>
-                </td>
-              </tr>
-            )}
-            data={news}
+          <NewsTab
+            news={news}
+            onAdd={() => openNewsDialog("add")}
+            onEdit={(item) => openNewsDialog("edit", item)}
+            onDelete={deleteNews}
           />
         )}
         {activeTab === "members" && (
-          <DataTableTab
-            title="Anggota"
-            onAdd={() => openMemberModal("add")}
-            columns={["ID", "Nama", "Kategori", "Kontribusi", "Aksi"]}
-            renderRow={(m: Member) => (
-              <tr key={m.id}>
-                <td className="k-text-muted k-tiny">{m.id}</td>
-                <td><strong>{m.name}</strong></td>
-                <td><span className="k-tag" style={{ fontSize: ".75rem" }}>{m.category}</span></td>
-                <td className="k-text-muted" style={{ fontSize: ".85rem" }}>{m.contribution}</td>
-                <td>
-                  <div className="k-flex k-gap-3">
-                    <button className="k-btn k-btn-ghost" style={{ padding: ".3rem .6rem", fontSize: ".8rem" }} onClick={() => openMemberModal("edit", m)}>Edit</button>
-                    <button className="k-btn k-btn-ghost" style={{ padding: ".3rem .6rem", fontSize: ".8rem", color: "var(--k-danger)" }} onClick={() => deleteMember(m.id)}>Hapus</button>
-                  </div>
-                </td>
-              </tr>
-            )}
-            data={members}
+          <MembersTab
+            members={members}
+            onAdd={() => openMemberDialog("add")}
+            onEdit={(item) => openMemberDialog("edit", item)}
+            onDelete={deleteMember}
           />
         )}
-        {activeTab === "donations" && (
-          <DataTableTab
-            title="Donasi"
-            columns={["ID", "Jumlah", "Program", "Donatur", "Tipe", "Tanggal"]}
-            renderRow={(d: Donation) => (
-              <tr key={d.id}>
-                <td className="k-text-muted k-tiny">{d.id}</td>
-                <td><strong>{formatRp(d.amount)}</strong></td>
-                <td style={{ fontSize: ".85rem" }}>{d.program}</td>
-                <td style={{ fontSize: ".85rem" }}>{d.donorName}{d.email ? ` (${d.email})` : ""}</td>
-                <td><span className="k-tag" style={{ fontSize: ".75rem" }}>{d.type === "monthly" ? "Bulanan" : "Sekali"}</span></td>
-                <td className="k-tiny k-text-muted">{new Date(d.createdAt).toLocaleDateString("id-ID")}</td>
-              </tr>
-            )}
-            data={donations}
-          />
-        )}
-        {activeTab === "contacts" && (
-          <DataTableTab
-            title="Kontak Masuk"
-            columns={["ID", "Nama", "Kategori", "Kontak", "Minat", "Pesan", "Tanggal"]}
-            renderRow={(c: ContactSubmission) => (
-              <tr key={c.id}>
-                <td className="k-text-muted k-tiny">{c.id}</td>
-                <td><strong>{c.name}</strong></td>
-                <td><span className="k-tag" style={{ fontSize: ".75rem" }}>{c.category}</span></td>
-                <td style={{ fontSize: ".85rem" }}>{c.contact}</td>
-                <td style={{ fontSize: ".85rem" }}>{c.interest || "-"}</td>
-                <td style={{ fontSize: ".85rem", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis" }}>{c.message || "-"}</td>
-                <td className="k-tiny k-text-muted">{new Date(c.submittedAt).toLocaleDateString("id-ID")}</td>
-              </tr>
-            )}
-            data={contacts}
-          />
-        )}
+        {activeTab === "donations" && <DonationsTab donations={donations} />}
+        {activeTab === "contacts" && <ContactsTab contacts={contacts} />}
         {activeTab === "campaign" && campaign && <CampaignTab campaign={campaign} stats={stats} />}
         {activeTab === "stats" && stats && <StatsTab stats={stats} overview={overview!} />}
       </div>
 
-      {/* Modal */}
-      {showModal && (
-        <div style={{
-          position: "fixed", inset: 0, zIndex: 200,
-          display: "grid", placeItems: "center",
-          background: "rgba(0,0,0,.45)",
-          padding: "1rem",
-        }} onClick={() => setShowModal(false)}>
-          <div style={{
-            background: "var(--k-surface)",
-            border: "1px solid var(--k-border)",
-            borderRadius: "24px",
-            padding: "2rem",
-            width: "min(540px, 100%)",
-            maxHeight: "90vh",
-            overflow: "auto",
-          }} onClick={(e) => e.stopPropagation()}>
-            <div className="k-flex k-items-center k-justify-between" style={{ marginBottom: "1.25rem" }}>
-              <h2 style={{ margin: 0 }}>{modalMode === "add" ? "Tambah" : "Edit"} {activeTab === "news" ? "Berita" : "Anggota"}</h2>
-              <button className="k-btn k-btn-ghost" style={{ padding: ".3rem .6rem", fontSize: ".8rem" }} onClick={() => setShowModal(false)}>✕</button>
+      {/* News Dialog */}
+      <Dialog open={showNewsDialog} onOpenChange={setShowNewsDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{modalMode === "add" ? "Tambah Berita" : "Edit Berita"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={saveNews} className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Judul</label>
+              <Input
+                value={newsForm.title}
+                onChange={(e) => setNewsForm({ ...newsForm, title: e.target.value })}
+                required
+                placeholder="Judul berita"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Ringkasan</label>
+              <Textarea
+                value={newsForm.summary}
+                onChange={(e) => setNewsForm({ ...newsForm, summary: e.target.value })}
+                rows={3}
+                placeholder="Ringkasan berita"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Tag</label>
+                <Input
+                  value={newsForm.tag}
+                  onChange={(e) => setNewsForm({ ...newsForm, tag: e.target.value })}
+                  placeholder="Berita terbaru"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Warna Tag</label>
+                <Select value={newsForm.tagColor} onValueChange={(v) => setNewsForm({ ...newsForm, tagColor: v })}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="green">Hijau</SelectItem>
+                    <SelectItem value="blue">Biru</SelectItem>
+                    <SelectItem value="gold">Emas</SelectItem>
+                    <SelectItem value="purple">Ungu</SelectItem>
+                    <SelectItem value="danger">Merah</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            {activeTab === "news" ? (
-              <form onSubmit={saveNews}>
-                <div style={{ display: "grid", gap: ".85rem" }}>
-                  <div>
-                    <label className="k-tiny k-text-muted" style={{ display: "block", marginBottom: ".3rem", fontWeight: 700 }}>Judul</label>
-                    <input value={newsForm.title} onChange={(e) => setNewsForm({ ...newsForm, title: e.target.value })} required
-                      style={{ width: "100%", padding: ".6rem .8rem", borderRadius: ".5rem", border: "1px solid var(--k-border)", background: "transparent", color: "inherit", fontSize: "1rem" }} />
-                  </div>
-                  <div>
-                    <label className="k-tiny k-text-muted" style={{ display: "block", marginBottom: ".3rem", fontWeight: 700 }}>Ringkasan</label>
-                    <textarea value={newsForm.summary} onChange={(e) => setNewsForm({ ...newsForm, summary: e.target.value })} rows={3}
-                      style={{ width: "100%", padding: ".6rem .8rem", borderRadius: ".5rem", border: "1px solid var(--k-border)", background: "transparent", color: "inherit", fontSize: "1rem", resize: "vertical" }} />
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: ".75rem" }}>
-                    <div>
-                      <label className="k-tiny k-text-muted" style={{ display: "block", marginBottom: ".3rem", fontWeight: 700 }}>Tag</label>
-                      <input value={newsForm.tag} onChange={(e) => setNewsForm({ ...newsForm, tag: e.target.value })}
-                        style={{ width: "100%", padding: ".6rem .8rem", borderRadius: ".5rem", border: "1px solid var(--k-border)", background: "transparent", color: "inherit", fontSize: "1rem" }} />
-                    </div>
-                    <div>
-                      <label className="k-tiny k-text-muted" style={{ display: "block", marginBottom: ".3rem", fontWeight: 700 }}>Warna Tag</label>
-                      <select value={newsForm.tagColor} onChange={(e) => setNewsForm({ ...newsForm, tagColor: e.target.value })}
-                        style={{ width: "100%", padding: ".6rem .8rem", borderRadius: ".5rem", border: "1px solid var(--k-border)", background: "transparent", color: "inherit", fontSize: "1rem" }}>
-                        <option value="green">Hijau</option>
-                        <option value="blue">Biru</option>
-                        <option value="gold">Emas</option>
-                        <option value="purple">Ungu</option>
-                        <option value="danger">Merah</option>
-                      </select>
-                    </div>
-                  </div>
-                  <button type="submit" className="k-btn k-btn-primary" disabled={saving} style={{ marginTop: ".5rem" }}>
-                    {saving ? "Menyimpan..." : modalMode === "add" ? "Tambah Berita" : "Simpan Perubahan"}
-                  </button>
+            {/* Image Upload Section */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground">Gambar</label>
+              {previewImage && (
+                <div className="relative rounded-lg overflow-hidden border border-border mb-2">
+                  <img
+                    src={previewImage}
+                    alt="Preview"
+                    className="w-full h-40 object-cover"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="absolute top-2 right-2 bg-background/80 hover:bg-background"
+                    onClick={() => {
+                      setPreviewImage(null)
+                      setNewsForm(prev => ({ ...prev, imageUrl: "" }))
+                    }}
+                  >
+                    <X className="size-4" />
+                  </Button>
                 </div>
-              </form>
-            ) : (
-              <form onSubmit={saveMember}>
-                <div style={{ display: "grid", gap: ".85rem" }}>
-                  <div>
-                    <label className="k-tiny k-text-muted" style={{ display: "block", marginBottom: ".3rem", fontWeight: 700 }}>Nama</label>
-                    <input value={memberForm.name} onChange={(e) => setMemberForm({ ...memberForm, name: e.target.value })} required
-                      style={{ width: "100%", padding: ".6rem .8rem", borderRadius: ".5rem", border: "1px solid var(--k-border)", background: "transparent", color: "inherit", fontSize: "1rem" }} />
-                  </div>
-                  <div>
-                    <label className="k-tiny k-text-muted" style={{ display: "block", marginBottom: ".3rem", fontWeight: 700 }}>Kategori</label>
-                    <select value={memberForm.category} onChange={(e) => setMemberForm({ ...memberForm, category: e.target.value })} required
-                      style={{ width: "100%", padding: ".6rem .8rem", borderRadius: ".5rem", border: "1px solid var(--k-border)", background: "transparent", color: "inherit", fontSize: "1rem" }}>
-                      <option value="">Pilih kategori</option>
-                      <option value="RS">RS</option>
-                      <option value="Universitas">Universitas</option>
-                      <option value="NGO">NGO</option>
-                      <option value="Perusahaan">Perusahaan</option>
-                      <option value="Ormas">Ormas</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="k-tiny k-text-muted" style={{ display: "block", marginBottom: ".3rem", fontWeight: 700 }}>Kontribusi</label>
-                    <input value={memberForm.contribution} onChange={(e) => setMemberForm({ ...memberForm, contribution: e.target.value })}
-                      style={{ width: "100%", padding: ".6rem .8rem", borderRadius: ".5rem", border: "1px solid var(--k-border)", background: "transparent", color: "inherit", fontSize: "1rem" }} />
-                  </div>
-                  <button type="submit" className="k-btn k-btn-primary" disabled={saving} style={{ marginTop: ".5rem" }}>
-                    {saving ? "Menyimpan..." : modalMode === "add" ? "Tambah Anggota" : "Simpan Perubahan"}
-                  </button>
+              )}
+              {!previewImage && (
+                <div
+                  className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-muted-foreground/50 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="mx-auto size-6 text-muted-foreground mb-1" />
+                  <p className="text-xs text-muted-foreground">
+                    {modalMode === "add"
+                      ? "Upload setelah menyimpan berita"
+                      : "Klik untuk upload gambar"}
+                  </p>
                 </div>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={handleImageUpload}
+                disabled={modalMode === "add" || uploading}
+              />
+              {modalMode === "add" && (
+                <p className="text-xs text-muted-foreground">
+                  Simpan berita terlebih dahulu, lalu upload gambar.
+                </p>
+              )}
+              {uploading && <p className="text-xs text-muted-foreground">Mengupload gambar...</p>}
+            </div>
+
+            <DialogFooter>
+              <Button type="submit" disabled={saving}>
+                {saving ? "Menyimpan..." : modalMode === "add" ? "Tambah Berita" : "Simpan Perubahan"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Member Dialog */}
+      <Dialog open={showMemberDialog} onOpenChange={setShowMemberDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{modalMode === "add" ? "Tambah Anggota" : "Edit Anggota"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={saveMember} className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Nama</label>
+              <Input
+                value={memberForm.name}
+                onChange={(e) => setMemberForm({ ...memberForm, name: e.target.value })}
+                required
+                placeholder="Nama lembaga/anggota"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Kategori</label>
+              <Select value={memberForm.category} onValueChange={(v) => setMemberForm({ ...memberForm, category: v })}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Pilih kategori" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="RS">RS</SelectItem>
+                  <SelectItem value="Universitas">Universitas</SelectItem>
+                  <SelectItem value="NGO">NGO</SelectItem>
+                  <SelectItem value="Perusahaan">Perusahaan</SelectItem>
+                  <SelectItem value="Ormas">Ormas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Kontribusi</label>
+              <Input
+                value={memberForm.contribution}
+                onChange={(e) => setMemberForm({ ...memberForm, contribution: e.target.value })}
+                placeholder="Bidang kontribusi"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={saving}>
+                {saving ? "Menyimpan..." : modalMode === "add" ? "Tambah Anggota" : "Simpan Perubahan"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
 
-// --- Sub-components ---
-
+// --- Overview Tab ---
 function OverviewTab({ overview, donations, contacts, news, members }: {
   overview: AdminOverview
   donations: Donation[]
@@ -410,42 +490,37 @@ function OverviewTab({ overview, donations, contacts, news, members }: {
 
   return (
     <div>
-      <div className="k-grid-4" style={{ marginBottom: "1.5rem" }}>
-        <div className="k-card" style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "2rem", fontWeight: 800, fontFamily: "var(--k-font-display)" }}>{news.length}</div>
-          <span className="k-text-muted k-tiny">Total Berita</span>
-        </div>
-        <div className="k-card" style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "2rem", fontWeight: 800, fontFamily: "var(--k-font-display)" }}>{members.length}</div>
-          <span className="k-text-muted k-tiny">Total Anggota</span>
-        </div>
-        <div className="k-card" style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "2rem", fontWeight: 800, fontFamily: "var(--k-font-display)" }}>{formatRp(totalDonationRp)}</div>
-          <span className="k-text-muted k-tiny">Total Donasi ({donations.length} transaksi)</span>
-        </div>
-        <div className="k-card" style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "2rem", fontWeight: 800, fontFamily: "var(--k-font-display)" }}>{contacts.length}</div>
-          <span className="k-text-muted k-tiny">Kontak Masuk{newContacts > 0 ? ` (${newContacts} baru minggu ini)` : ""}</span>
-        </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ marginBottom: "1.5rem" }}>
+        {[
+          { value: news.length, label: "Total Berita" },
+          { value: members.length, label: "Total Anggota" },
+          { value: formatRp(totalDonationRp), label: `Total Donasi (${donations.length} transaksi)` },
+          { value: contacts.length, label: `Kontak Masuk${newContacts > 0 ? ` (${newContacts} baru)` : ""}` },
+        ].map((item, i) => (
+          <div key={i} className="k-card" style={{ textAlign: "center" }}>
+            <div style={{ fontSize: "clamp(1.4rem, 2vw, 2rem)", fontWeight: 800, fontFamily: "var(--k-font-display)" }}>{item.value}</div>
+            <span className="k-text-muted k-tiny">{item.label}</span>
+          </div>
+        ))}
       </div>
 
-      <div className="k-grid-2" style={{ marginBottom: "1.5rem" }}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" style={{ marginBottom: "1.5rem" }}>
         <div className="k-panel">
           <h3>Progress Kampanye</h3>
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: ".75rem" }}>
+          <div className="flex justify-between mt-3">
             <span><strong>{formatRp(overview.campaignProgress.collected)}</strong></span>
             <span className="k-text-muted">dari {formatRp(overview.campaignProgress.target)}</span>
           </div>
           <div className="k-kpi-bar">
             <i style={{ width: `${overview.campaignProgress.percentage}%` }} />
           </div>
-          <div style={{ marginTop: ".5rem" }}>
-            <span className="k-accent-green k-tag">{Math.round(overview.campaignProgress.percentage)}% tercapai</span>
+          <div className="mt-2">
+            <Badge variant="secondary">{Math.round(overview.campaignProgress.percentage)}% tercapai</Badge>
           </div>
         </div>
         <div className="k-panel">
           <h3>Donasi Bulanan</h3>
-          <div style={{ fontSize: "1.8rem", fontWeight: 800, fontFamily: "var(--k-font-display)", marginTop: ".5rem" }}>{formatRp(monthlyDonations)}</div>
+          <div style={{ fontSize: "clamp(1.4rem, 2vw, 1.8rem)", fontWeight: 800, fontFamily: "var(--k-font-display)", marginTop: ".5rem" }}>{formatRp(monthlyDonations)}</div>
           <p className="k-text-muted">Total dari donasi rutin bulanan</p>
           <div className="k-kpi-bar">
             <i style={{ width: `${donations.length > 0 ? (monthlyDonations / totalDonationRp) * 100 : 0}%`, background: "var(--k-gold)" }} />
@@ -453,85 +528,291 @@ function OverviewTab({ overview, donations, contacts, news, members }: {
         </div>
       </div>
 
-      <div className="k-grid-3">
-        <div className="k-panel">
-          <h3>Berita Terbaru</h3>
-          {news.slice(0, 4).map(n => (
-            <div key={n.id} style={{ padding: ".5rem 0", borderBottom: "1px solid var(--k-border)" }}>
-              <div style={{ fontWeight: 600, fontSize: ".9rem" }}>{n.title}</div>
-              <div className="k-tiny k-text-muted">{new Date(n.publishedAt).toLocaleDateString("id-ID")}</div>
-            </div>
-          ))}
-        </div>
-        <div className="k-panel">
-          <h3>Anggota Terbaru</h3>
-          {members.slice(0, 4).map(m => (
-            <div key={m.id} style={{ padding: ".5rem 0", borderBottom: "1px solid var(--k-border)" }}>
-              <div style={{ fontWeight: 600, fontSize: ".9rem" }}>{m.name}</div>
-              <span className="k-tag k-tiny">{m.category}</span>
-            </div>
-          ))}
-        </div>
-        <div className="k-panel">
-          <h3>Kontak Terbaru</h3>
-          {contacts.slice(0, 4).map(c => (
-            <div key={c.id} style={{ padding: ".5rem 0", borderBottom: "1px solid var(--k-border)" }}>
-              <div style={{ fontWeight: 600, fontSize: ".9rem" }}>{c.name}</div>
-              <div className="k-tiny k-text-muted">{c.category} • {c.contact}</div>
-            </div>
-          ))}
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[
+          { title: "Berita Terbaru", items: news.slice(0, 4).map(n => ({ primary: n.title, secondary: new Date(n.publishedAt).toLocaleDateString("id-ID") })) },
+          { title: "Anggota Terbaru", items: members.slice(0, 4).map(m => ({ primary: m.name, secondary: m.category })) },
+          { title: "Kontak Terbaru", items: contacts.slice(0, 4).map(c => ({ primary: c.name, secondary: `${c.category} • ${c.contact}` })) },
+        ].map((section, i) => (
+          <div key={i} className="k-panel">
+            <h3>{section.title}</h3>
+            {section.items.map((item, j) => (
+              <div key={j} style={{ padding: ".5rem 0", borderBottom: "1px solid var(--k-border)" }}>
+                <div style={{ fontWeight: 600, fontSize: ".9rem" }}>{item.primary}</div>
+                <div className="k-tiny k-text-muted">{item.secondary}</div>
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
     </div>
   )
 }
 
-function DataTableTab<T extends { id: number }>({ title, onAdd, columns, renderRow, data }: {
-  title: string
-  onAdd?: () => void
-  columns: string[]
-  renderRow: (item: T) => ReactNode
-  data: T[]
+// --- News Tab ---
+function NewsTab({ news, onAdd, onEdit, onDelete }: {
+  news: NewsItem[]
+  onAdd: () => void
+  onEdit: (item: NewsItem) => void
+  onDelete: (id: number) => void
 }) {
   return (
     <div>
-      <div className="k-flex k-items-center k-justify-between" style={{ marginBottom: "1rem" }}>
-        <h3 style={{ margin: 0 }}>{title} ({data.length})</h3>
-        {onAdd && (
-          <button className="k-btn k-btn-primary" onClick={onAdd} style={{ fontSize: ".85rem", padding: ".5rem 1rem" }}>
-            + Tambah
-          </button>
-        )}
+      <div className="flex items-center justify-between flex-wrap gap-3" style={{ marginBottom: "1rem" }}>
+        <h3 style={{ margin: 0 }}>Berita ({news.length})</h3>
+        <Button size="sm" onClick={onAdd}><Plus /> Tambah</Button>
       </div>
-      <div style={{ overflowX: "auto", border: "1px solid var(--k-border)", borderRadius: "16px", background: "var(--k-surface)" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: ".9rem" }}>
-          <thead>
-            <tr style={{ borderBottom: "1px solid var(--k-border)" }}>
-              {columns.map(col => <th key={col} style={{ textAlign: "left", padding: ".75rem 1rem", fontWeight: 700, fontSize: ".8rem", textTransform: "uppercase", color: "var(--k-text-muted)" }}>{col}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {data.length === 0 ? (
-              <tr><td colSpan={columns.length} style={{ padding: "2rem", textAlign: "center", color: "var(--k-text-muted)" }}>Belum ada data</td></tr>
-            ) : (
-              data.map(item => renderRow(item))
-            )}
-          </tbody>
-        </table>
+      <div className="rounded-xl border border-border bg-background overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">ID</TableHead>
+                <TableHead className="min-w-[200px]">Judul</TableHead>
+                <TableHead className="hidden md:table-cell min-w-[120px]">Gambar</TableHead>
+                <TableHead className="hidden md:table-cell">Ringkasan</TableHead>
+                <TableHead className="hidden sm:table-cell">Tag</TableHead>
+                <TableHead className="hidden sm:table-cell">Tanggal</TableHead>
+                <TableHead className="w-24 text-right">Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {news.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                    Belum ada berita
+                  </TableCell>
+                </TableRow>
+              ) : (
+                news.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="text-muted-foreground text-xs font-mono">{item.id}</TableCell>
+                    <TableCell className="font-medium max-w-[250px]">
+                      <div className="truncate">{item.title}</div>
+                      {/* Mobile-only summary and tag */}
+                      <div className="flex items-center gap-2 mt-1 md:hidden">
+                        {item.imageUrl && (
+                          <img src={item.imageUrl} alt="" className="size-8 rounded object-cover flex-shrink-0" />
+                        )}
+                        <Badge variant="secondary" className="text-[10px]">{item.tag}</Badge>
+                        <span className="text-[10px] text-muted-foreground">
+                          {new Date(item.publishedAt).toLocaleDateString("id-ID")}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {item.imageUrl ? (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.title}
+                          className="w-16 h-12 rounded-lg object-cover border border-border"
+                        />
+                      ) : (
+                        <div className="w-16 h-12 rounded-lg bg-muted flex items-center justify-center">
+                          <Image className="size-4 text-muted-foreground" />
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell max-w-[200px]">
+                      <span className="text-muted-foreground text-xs line-clamp-2">{item.summary}</span>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      <Badge variant="secondary">{item.tag}</Badge>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell text-muted-foreground text-xs whitespace-nowrap">
+                      {new Date(item.publishedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon-xs" onClick={() => onEdit(item)} title="Edit">
+                          <Pencil className="size-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon-xs" onClick={() => onDelete(item.id)} title="Hapus" className="text-destructive hover:text-destructive">
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   )
 }
 
+// --- Members Tab ---
+function MembersTab({ members, onAdd, onEdit, onDelete }: {
+  members: Member[]
+  onAdd: () => void
+  onEdit: (item: Member) => void
+  onDelete: (id: number) => void
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between flex-wrap gap-3" style={{ marginBottom: "1rem" }}>
+        <h3 style={{ margin: 0 }}>Anggota ({members.length})</h3>
+        <Button size="sm" onClick={onAdd}><Plus /> Tambah</Button>
+      </div>
+      <div className="rounded-xl border border-border bg-background overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">ID</TableHead>
+                <TableHead className="min-w-[180px]">Nama</TableHead>
+                <TableHead>Kategori</TableHead>
+                <TableHead className="hidden md:table-cell">Kontribusi</TableHead>
+                <TableHead className="w-24 text-right">Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {members.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                    Belum ada anggota
+                  </TableCell>
+                </TableRow>
+              ) : (
+                members.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="text-muted-foreground text-xs font-mono">{item.id}</TableCell>
+                    <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableCell><Badge variant="secondary">{item.category}</Badge></TableCell>
+                    <TableCell className="hidden md:table-cell text-muted-foreground text-sm">{item.contribution}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon-xs" onClick={() => onEdit(item)} title="Edit">
+                          <Pencil className="size-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon-xs" onClick={() => onDelete(item.id)} title="Hapus" className="text-destructive hover:text-destructive">
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// --- Donations Tab ---
+function DonationsTab({ donations }: { donations: Donation[] }) {
+  return (
+    <div>
+      <h3 style={{ marginBottom: "1rem" }}>Donasi ({donations.length})</h3>
+      <div className="rounded-xl border border-border bg-background overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">ID</TableHead>
+                <TableHead>Jumlah</TableHead>
+                <TableHead>Program</TableHead>
+                <TableHead className="hidden sm:table-cell">Donatur</TableHead>
+                <TableHead className="hidden sm:table-cell">Tipe</TableHead>
+                <TableHead className="hidden md:table-cell">Tanggal</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {donations.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    Belum ada donasi
+                  </TableCell>
+                </TableRow>
+              ) : (
+                donations.map((d) => (
+                  <TableRow key={d.id}>
+                    <TableCell className="text-muted-foreground text-xs font-mono">{d.id}</TableCell>
+                    <TableCell className="font-medium">{formatRp(d.amount)}</TableCell>
+                    <TableCell className="text-sm">{d.program}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-sm">{d.donorName}{d.email ? ` (${d.email})` : ""}</TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      <Badge variant={d.type === "monthly" ? "default" : "secondary"}>
+                        {d.type === "monthly" ? "Bulanan" : "Sekali"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell text-muted-foreground text-xs">
+                      {new Date(d.createdAt).toLocaleDateString("id-ID")}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// --- Contacts Tab ---
+function ContactsTab({ contacts }: { contacts: ContactSubmission[] }) {
+  return (
+    <div>
+      <h3 style={{ marginBottom: "1rem" }}>Kontak Masuk ({contacts.length})</h3>
+      <div className="rounded-xl border border-border bg-background overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">ID</TableHead>
+                <TableHead>Nama</TableHead>
+                <TableHead className="hidden sm:table-cell">Kategori</TableHead>
+                <TableHead className="hidden sm:table-cell">Kontak</TableHead>
+                <TableHead className="hidden md:table-cell">Pesan</TableHead>
+                <TableHead className="hidden md:table-cell">Tanggal</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {contacts.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    Belum ada kontak masuk
+                  </TableCell>
+                </TableRow>
+              ) : (
+                contacts.map((c) => (
+                  <TableRow key={c.id}>
+                    <TableCell className="text-muted-foreground text-xs font-mono">{c.id}</TableCell>
+                    <TableCell className="font-medium">{c.name}</TableCell>
+                    <TableCell className="hidden sm:table-cell"><Badge variant="secondary">{c.category}</Badge></TableCell>
+                    <TableCell className="hidden sm:table-cell text-sm">{c.contact}</TableCell>
+                    <TableCell className="hidden md:table-cell text-muted-foreground text-sm max-w-[200px]">
+                      <span className="line-clamp-2">{c.message || "-"}</span>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell text-muted-foreground text-xs">
+                      {new Date(c.submittedAt).toLocaleDateString("id-ID")}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// --- Campaign Tab ---
 function CampaignTab({ campaign, stats }: { campaign: Campaign; stats: Stats | null }) {
   return (
-    <div className="k-grid-2">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <div className="k-panel k-panel-accent-gold">
         <h2>Kampanye Aktif</h2>
         <h3 style={{ marginTop: ".75rem" }}>{campaign.title}</h3>
         <p>{campaign.description}</p>
         <div style={{ marginTop: "1rem" }}>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <div className="flex justify-between">
             <span><strong>{formatRp(campaign.collected)}</strong></span>
             <span className="k-text-muted">Target: {formatRp(campaign.target)}</span>
           </div>
@@ -547,15 +828,15 @@ function CampaignTab({ campaign, stats }: { campaign: Campaign; stats: Stats | n
         <h2>Statistik Terkait</h2>
         {stats && (
           <div style={{ display: "grid", gap: ".75rem", marginTop: ".75rem" }}>
-            <div className="k-flex k-items-center k-justify-between">
+            <div className="flex items-center justify-between">
               <span className="k-text-muted">Lembaga Kolaborasi</span>
               <strong>{stats.organizations}+</strong>
             </div>
-            <div className="k-flex k-items-center k-justify-between">
+            <div className="flex items-center justify-between">
               <span className="k-text-muted">Penerima Manfaat</span>
               <strong>{stats.beneficiaries.toLocaleString("id-ID")}</strong>
             </div>
-            <div className="k-flex k-items-center k-justify-between">
+            <div className="flex items-center justify-between">
               <span className="k-text-muted">Dukungan Terpetakan</span>
               <strong>{formatRp(stats.fundingRp)}</strong>
             </div>
@@ -566,57 +847,50 @@ function CampaignTab({ campaign, stats }: { campaign: Campaign; stats: Stats | n
   )
 }
 
+// --- Stats Tab ---
 function StatsTab({ stats, overview }: { stats: Stats; overview: AdminOverview }) {
   return (
     <div>
-      <div className="k-grid-3" style={{ marginBottom: "1.5rem" }}>
-        <div className="k-card" style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "2.5rem", fontWeight: 800, fontFamily: "var(--k-font-display)" }}>{stats.organizations}+</div>
-          <span className="k-text-muted">Lembaga Kolaborasi</span>
-        </div>
-        <div className="k-card" style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "2.5rem", fontWeight: 800, fontFamily: "var(--k-font-display)" }}>{stats.beneficiaries.toLocaleString("id-ID")}</div>
-          <span className="k-text-muted">Penerima Manfaat</span>
-        </div>
-        <div className="k-card" style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "2.5rem", fontWeight: 800, fontFamily: "var(--k-font-display)" }}>{formatRp(stats.fundingRp)}</div>
-          <span className="k-text-muted">Dukungan Terpetakan</span>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" style={{ marginBottom: "1.5rem" }}>
+        {[
+          { value: `${stats.organizations}+`, label: "Lembaga Kolaborasi" },
+          { value: stats.beneficiaries.toLocaleString("id-ID"), label: "Penerima Manfaat" },
+          { value: formatRp(stats.fundingRp), label: "Dukungan Terpetakan" },
+        ].map((item, i) => (
+          <div key={i} className="k-card" style={{ textAlign: "center" }}>
+            <div style={{ fontSize: "clamp(1.5rem, 2.5vw, 2.5rem)", fontWeight: 800, fontFamily: "var(--k-font-display)" }}>{item.value}</div>
+            <span className="k-text-muted">{item.label}</span>
+          </div>
+        ))}
       </div>
 
       <div className="k-panel">
         <h3>Database Summary</h3>
-        <table style={{ width: "100%", borderCollapse: "collapse", marginTop: ".75rem" }}>
-          <thead>
-            <tr style={{ borderBottom: "1px solid var(--k-border)" }}>
-              <th style={{ textAlign: "left", padding: ".6rem 1rem", fontWeight: 700, fontSize: ".8rem", textTransform: "uppercase", color: "var(--k-text-muted)" }}>Tabel</th>
-              <th style={{ textAlign: "right", padding: ".6rem 1rem", fontWeight: 700, fontSize: ".8rem", textTransform: "uppercase", color: "var(--k-text-muted)" }}>Jumlah Record</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[
-              { name: "Berita (news_items)", count: overview.totalNews },
-              { name: "Anggota (members)", count: overview.totalMembers },
-              { name: "Donasi (donations)", count: overview.totalDonations },
-              { name: "Kontak Masuk (contact_submissions)", count: overview.totalContacts },
-              { name: "Kampanye (campaigns)", count: 1 },
-              { name: "Statistik (stats)", count: 1 },
-            ].map(row => (
-              <tr key={row.name} style={{ borderBottom: "1px solid var(--k-border)" }}>
-                <td style={{ padding: ".6rem 1rem" }}>{row.name}</td>
-                <td style={{ padding: ".6rem 1rem", textAlign: "right", fontWeight: 700 }}>{row.count}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td style={{ padding: ".6rem 1rem", fontWeight: 700 }}>Total</td>
-              <td style={{ padding: ".6rem 1rem", textAlign: "right", fontWeight: 800, fontSize: "1.1rem" }}>
-                {overview.totalNews + overview.totalMembers + overview.totalDonations + overview.totalContacts + 2}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
+        <div className="overflow-x-auto mt-3">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Tabel</TableHead>
+                <TableHead className="text-right">Jumlah Record</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[
+                { name: "Berita (news_items)", count: overview.totalNews },
+                { name: "Anggota (members)", count: overview.totalMembers },
+                { name: "Donasi (donations)", count: overview.totalDonations },
+                { name: "Kontak Masuk (contact_submissions)", count: overview.totalContacts },
+                { name: "Kampanye (campaigns)", count: 1 },
+                { name: "Statistik (stats)", count: 1 },
+              ].map(row => (
+                <TableRow key={row.name}>
+                  <TableCell>{row.name}</TableCell>
+                  <TableCell className="text-right font-medium">{row.count}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   )

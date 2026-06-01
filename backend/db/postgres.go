@@ -52,6 +52,7 @@ func Migrate(ctx context.Context) error {
 		summary TEXT NOT NULL DEFAULT '',
 		tag TEXT NOT NULL DEFAULT '',
 		tag_color TEXT NOT NULL DEFAULT '',
+		image_url TEXT NOT NULL DEFAULT '',
 		published_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 	);
 
@@ -90,6 +91,19 @@ func Migrate(ctx context.Context) error {
 		message TEXT NOT NULL DEFAULT '',
 		submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 	);
+
+	-- Add missing columns from schema changes (safe to re-run)
+	ALTER TABLE news_items ADD COLUMN IF NOT EXISTS image_url TEXT NOT NULL DEFAULT '';
+
+	-- Backfill image_url for existing rows that have empty image_url
+	UPDATE news_items SET image_url = 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=800&q=80' WHERE id = 1 AND image_url = '';
+	UPDATE news_items SET image_url = 'https://images.unsplash.com/photo-1584515979956-d9f2e4d7c53a?w=800&q=80' WHERE id = 2 AND image_url = '';
+	UPDATE news_items SET image_url = 'https://images.unsplash.com/photo-1555252333-9f8e92e65df9?w=800&q=80' WHERE id = 3 AND image_url = '';
+	UPDATE news_items SET image_url = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80' WHERE id = 4 AND image_url = '';
+	UPDATE news_items SET image_url = 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?w=800&q=80' WHERE id = 5 AND image_url = '';
+	UPDATE news_items SET image_url = 'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800&q=80' WHERE id = 6 AND image_url = '';
+	UPDATE news_items SET image_url = 'https://images.unsplash.com/photo-1560252829-804f1aedf1be?w=800&q=80' WHERE id = 7 AND image_url = '';
+	UPDATE news_items SET image_url = 'https://images.unsplash.com/photo-1593113598332-cd288d649433?w=800&q=80' WHERE id = 8 AND image_url = '';
 	`
 
 	_, err := Pool.Exec(ctx, schema)
@@ -127,21 +141,21 @@ func Seed(ctx context.Context) error {
 
 	// News (8 items)
 	news := []struct {
-		title, summary, tag, tagColor string
-		publishedAt                   time.Time
+		title, summary, tag, tagColor, imageURL string
+		publishedAt                            time.Time
 	}{
-		{"Forum lintas sektor menyusun agenda stunting 2026", "Perwakilan dari 20 lembaga berkumpul untuk menyusun rencana aksi bersama percepatan penurunan stunting di Brebes.", "Berita terbaru", "green", time.Date(2026, 5, 20, 0, 0, 0, 0, time.UTC)},
-		{"Pelatihan kader posyandu se-Kecamatan Bumiayu", "50 kader posyandu mengikuti pelatihan deteksi dini risiko ibu hamil dan pengukuran antropometri balita.", "Kegiatan", "blue", time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC)},
-		{"Cerita Ibu Sartini: dari risiko tinggi pulih sempurna", "Berkat rujukan cepat dan pendampingan, Ibu Sartini berhasil melahirkan secara selamat meski tergolong risiko tinggi.", "Kisah perubahan", "gold", time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC)},
-		{"Launching dashboard data KIA Brebes", "KOBBER bersama Dinkes Brebes meluncurkan dashboard data kesehatan ibu dan anak yang dapat diakses publik.", "Berita terbaru", "green", time.Date(2026, 5, 5, 0, 0, 0, 0, time.UTC)},
-		{"Rakor anggota forum triwulan II", "Evaluasi program triwulan I dan penyusunan rencana aksi triwulan berikutnya dengan seluruh anggota forum.", "Kegiatan", "blue", time.Date(2026, 4, 28, 0, 0, 0, 0, time.UTC)},
-		{"Program USG keliling menjangkau 12 desa", "Layanan USG keliling telah menjangkau 12 desa prioritas dengan total 240 ibu hamil terperiksa.", "Program", "green", time.Date(2026, 4, 20, 0, 0, 0, 0, time.UTC)},
-		{"Testimoni kader desa tentang perubahan warga", "Para kader melaporkan perubahan positif perilaku warga setelah pendampingan rutin oleh tim lapangan.", "Kisah perubahan", "gold", time.Date(2026, 4, 12, 0, 0, 0, 0, time.UTC)},
-		{"Kolaborasi CSR untuk paket gizi balita", "Tiga perusahaan mitra menyalurkan paket gizi untuk 500 balita di wilayah prioritas.", "Kemitraan", "blue", time.Date(2026, 4, 5, 0, 0, 0, 0, time.UTC)},
+		{"Forum lintas sektor menyusun agenda stunting 2026", "Perwakilan dari 20 lembaga berkumpul untuk menyusun rencana aksi bersama percepatan penurunan stunting di Brebes.", "Berita terbaru", "green", "https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=800&q=80", time.Date(2026, 5, 20, 0, 0, 0, 0, time.UTC)},
+		{"Pelatihan kader posyandu se-Kecamatan Bumiayu", "50 kader posyandu mengikuti pelatihan deteksi dini risiko ibu hamil dan pengukuran antropometri balita.", "Kegiatan", "blue", "https://images.unsplash.com/photo-1584515979956-d9f2e4d7c53a?w=800&q=80", time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC)},
+		{"Cerita Ibu Sartini: dari risiko tinggi pulih sempurna", "Berkat rujukan cepat dan pendampingan, Ibu Sartini berhasil melahirkan secara selamat meski tergolong risiko tinggi.", "Kisah perubahan", "gold", "https://images.unsplash.com/photo-1555252333-9f8e92e65df9?w=800&q=80", time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC)},
+		{"Launching dashboard data KIA Brebes", "KOBBER bersama Dinkes Brebes meluncurkan dashboard data kesehatan ibu dan anak yang dapat diakses publik.", "Berita terbaru", "green", "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80", time.Date(2026, 5, 5, 0, 0, 0, 0, time.UTC)},
+		{"Rakor anggota forum triwulan II", "Evaluasi program triwulan I dan penyusunan rencana aksi triwulan berikutnya dengan seluruh anggota forum.", "Kegiatan", "blue", "https://images.unsplash.com/photo-1517048676732-d65bc937f952?w=800&q=80", time.Date(2026, 4, 28, 0, 0, 0, 0, time.UTC)},
+		{"Program USG keliling menjangkau 12 desa", "Layanan USG keliling telah menjangkau 12 desa prioritas dengan total 240 ibu hamil terperiksa.", "Program", "green", "https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800&q=80", time.Date(2026, 4, 20, 0, 0, 0, 0, time.UTC)},
+		{"Testimoni kader desa tentang perubahan warga", "Para kader melaporkan perubahan positif perilaku warga setelah pendampingan rutin oleh tim lapangan.", "Kisah perubahan", "gold", "https://images.unsplash.com/photo-1560252829-804f1aedf1be?w=800&q=80", time.Date(2026, 4, 12, 0, 0, 0, 0, time.UTC)},
+		{"Kolaborasi CSR untuk paket gizi balita", "Tiga perusahaan mitra menyalurkan paket gizi untuk 500 balita di wilayah prioritas.", "Kemitraan", "blue", "https://images.unsplash.com/photo-1593113598332-cd288d649433?w=800&q=80", time.Date(2026, 4, 5, 0, 0, 0, 0, time.UTC)},
 	}
 	for _, n := range news {
-		_, err = tx.Exec(ctx, "INSERT INTO news_items (title, summary, tag, tag_color, published_at) VALUES ($1,$2,$3,$4,$5)",
-			n.title, n.summary, n.tag, n.tagColor, n.publishedAt)
+		_, err = tx.Exec(ctx, "INSERT INTO news_items (title, summary, tag, tag_color, image_url, published_at) VALUES ($1,$2,$3,$4,$5,$6)",
+			n.title, n.summary, n.tag, n.tagColor, n.imageURL, n.publishedAt)
 		if err != nil {
 			return fmt.Errorf("seed news: %w", err)
 		}

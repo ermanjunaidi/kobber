@@ -14,6 +14,7 @@ type NewsItem struct {
 	Summary     string    `json:"summary"`
 	Tag         string    `json:"tag"`
 	TagColor    string    `json:"tagColor"`
+	ImageURL    string    `json:"imageUrl"`
 	PublishedAt time.Time `json:"publishedAt"`
 }
 
@@ -44,11 +45,11 @@ type Donation struct {
 }
 
 type ContactSubmission struct {
-	ID           int       `json:"id"`
-	Name         string    `json:"name"`
-	Category     string    `json:"category"`
-	Contact      string    `json:"contact"`
-	Interest     string    `json:"interest"`
-	Message      string    `json:"message"`
-	SubmittedAt  time.Time `json:"submittedAt"`
+	ID          int       `json:"id"`
+	Name        string    `json:"name"`
+	Category    string    `json:"category"`
+	Contact     string    `json:"contact"`
+	Interest    string    `json:"interest"`
+	Message     string    `json:"message"`
+	SubmittedAt time.Time `json:"submittedAt"`
 }

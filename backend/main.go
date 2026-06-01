@@ -44,6 +44,9 @@ func main() {
 		AllowMethods: "GET, POST, PUT, DELETE, OPTIONS",
 	}))
 
+	// Serve uploaded files statically
+	app.Static("/uploads", "./uploads")
+
 	// API routes
 	api := app.Group("/api")
 
@@ -59,6 +62,7 @@ func main() {
 	api.Post("/news", handlers.CreateNews)
 	api.Put("/news/:id", handlers.UpdateNews)
 	api.Delete("/news/:id", handlers.DeleteNews)
+	api.Post("/news/:id/image", handlers.UploadNewsImage)
 
 	// Members
 	api.Get("/members", handlers.GetMembers)
