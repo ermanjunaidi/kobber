@@ -20,15 +20,17 @@ dev:
 	@echo ""
 	@# Get local network IP
 	$(eval LOCAL_IP := $(shell hostname -I 2>/dev/null | awk '{print $$1}' || ipconfig getifaddr en0 2>/dev/null || echo "localhost"))
-	@echo "  Local    : http://localhost:5173"
-	@echo "  Network  : http://$(LOCAL_IP):5173"
+	@echo "  Frontend  : http://localhost:5173"
+	@echo "  Network   : http://$(LOCAL_IP):5173"
+	@echo "  Backend   : http://localhost:8081"
+	@echo "  Production: http://localhost:8080 (Docker)"
 	@echo ""
 	@# Kill leftover processes on dev ports
-	@lsof -ti:8080 2>/dev/null | xargs kill -9 2>/dev/null; true
+	@lsof -ti:8081 2>/dev/null | xargs kill -9 2>/dev/null; true
 	@lsof -ti:5173 2>/dev/null | xargs kill -9 2>/dev/null; true
 	@trap 'kill 0' EXIT; \
-	cd backend && go run main.go & \
-	cd Frontend && bun run dev & \
+	cd backend && PORT=8081 go run main.go & \
+	cd Frontend && API_PROXY_TARGET=http://localhost:8081 bun run dev & \
 	wait
 
 # Build and start all services (postgres + backend + frontend) in dev mode
@@ -118,7 +120,7 @@ tunnel-url:
 
 # Run backend locally (for development outside Docker)
 dev-backend:
-	cd backend && go run main.go
+	cd backend && PORT=8081 go run main.go
 
 # Run frontend locally (for development outside Docker)
 dev-frontend:

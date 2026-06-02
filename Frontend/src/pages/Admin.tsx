@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useNavigate } from "react-router"
 import { api, type Stats, type NewsItem, type Member, type Donation, type ContactSubmission, type Campaign } from "@/lib/api"
 import { formatRp } from "@/lib/utils"
@@ -575,6 +575,14 @@ function OverviewTab({ overview, donations, contacts, news, members }: {
 // --- News Tab ---
 const NEWS_PER_PAGE = 10
 
+const tagBadgeClass: Record<string, string> = {
+  green: "k-accent-green",
+  blue: "k-accent-blue",
+  gold: "k-accent-gold",
+  purple: "k-accent-purple",
+  danger: "k-accent-danger",
+}
+
 function NewsTab({ news, onAdd, onEdit, onDelete }: {
   news: NewsItem[]
   onAdd: () => void
@@ -582,11 +590,13 @@ function NewsTab({ news, onAdd, onEdit, onDelete }: {
   onDelete: (id: number) => void
 }) {
   const [page, setPage] = useState(1)
-  const totalPages = Math.max(1, Math.ceil(news.length / NEWS_PER_PAGE))
+  // Sort by ID descending (newest first)
+  const sorted = useMemo(() => [...news].sort((a, b) => b.id - a.id), [news])
+  const totalPages = Math.max(1, Math.ceil(sorted.length / NEWS_PER_PAGE))
   const safePage = Math.min(page, totalPages)
   const startIndex = (safePage - 1) * NEWS_PER_PAGE
   const endIndex = startIndex + NEWS_PER_PAGE
-  const paginatedNews = news.slice(startIndex, endIndex)
+  const paginatedNews = sorted.slice(startIndex, endIndex)
 
   // Reset to page 1 when news list changes
   useEffect(() => {
@@ -596,45 +606,69 @@ function NewsTab({ news, onAdd, onEdit, onDelete }: {
   return (
     <div>
       <div className="flex items-center justify-between flex-wrap gap-3" style={{ marginBottom: "1rem" }}>
-        <h3 style={{ margin: 0 }}>Berita ({news.length})</h3>
-        <Button size="sm" onClick={onAdd}><Plus /> Tambah</Button>
+        <h3 style={{ margin: 0 }}>
+          Berita 
+          <span className="text-muted-foreground font-normal text-sm ml-1.5">({news.length})</span>
+        </h3>
+        <Button size="sm" onClick={onAdd}><Plus className="size-4" /> Tambah</Button>
       </div>
-      <div className="rounded-xl border border-border bg-background overflow-hidden">
+      <div className="rounded-xl border border-border bg-background overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">ID</TableHead>
-                <TableHead className="min-w-[200px]">Judul</TableHead>
-                <TableHead className="hidden md:table-cell min-w-[120px]">Gambar</TableHead>
-                <TableHead className="hidden md:table-cell">Ringkasan</TableHead>
-                <TableHead className="hidden sm:table-cell">Tag</TableHead>
-                <TableHead className="hidden sm:table-cell">Tanggal</TableHead>
-                <TableHead className="w-24 text-right">Aksi</TableHead>
+              <TableRow className="bg-muted/40">
+                <TableHead className="w-12 font-semibold">#</TableHead>
+                <TableHead className="min-w-[220px] font-semibold">Judul</TableHead>
+                <TableHead className="hidden md:table-cell min-w-[100px] font-semibold">Gambar</TableHead>
+                <TableHead className="hidden lg:table-cell font-semibold">Ringkasan</TableHead>
+                <TableHead className="hidden sm:table-cell font-semibold">Tag</TableHead>
+                <TableHead className="hidden sm:table-cell font-semibold">Tanggal</TableHead>
+                <TableHead className="w-24 text-right font-semibold">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedNews.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                    {news.length === 0 ? "Belum ada berita" : "Halaman ini kosong"}
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-12">
+                    <div className="flex flex-col items-center gap-2">
+                      <Image className="size-8 text-muted-foreground/40" />
+                      <span>{news.length === 0 ? "Belum ada berita" : "Halaman ini kosong"}</span>
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedNews.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="text-muted-foreground text-xs font-mono">{item.id}</TableCell>
-                    <TableCell className="font-medium max-w-[250px]">
-                      <div className="truncate">{item.title}</div>
-                      {/* Mobile-only summary and tag */}
-                      <div className="flex items-center gap-2 mt-1 md:hidden">
-                        {item.imageUrl && (
-                          <img src={item.imageUrl} alt="" className="size-8 rounded object-cover flex-shrink-0" />
-                        )}
-                        <Badge variant="secondary" className="text-[10px]">{item.tag}</Badge>
-                        <span className="text-[10px] text-muted-foreground">
-                          {new Date(item.publishedAt).toLocaleDateString("id-ID")}
-                        </span>
+                paginatedNews.map((item, idx) => (
+                  <TableRow
+                    key={item.id}
+                    className="group transition-colors hover:bg-muted/20"
+                  >
+                    <TableCell className="text-muted-foreground/50 text-xs font-mono">
+                      {item.id}
+                    </TableCell>
+                    <TableCell className="font-medium max-w-[280px]">
+                      <div className="flex items-start gap-2.5">
+                        {/* Mobile thumbnail */}
+                        <div className="md:hidden size-10 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
+                          {item.imageUrl ? (
+                            <img src={item.imageUrl} alt="" className="size-full object-cover" />
+                          ) : (
+                            <div className="size-full flex items-center justify-center">
+                              <Image className="size-4 text-muted-foreground/40" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate font-semibold text-sm">{item.title}</div>
+                          {/* Mobile meta */}
+                          <div className="flex items-center gap-2 mt-1 md:hidden">
+                            <span className={`k-tag ${tagBadgeClass[item.tagColor] || "k-accent-green"}`}>
+                              {item.tag}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {new Date(item.publishedAt).toLocaleDateString("id-ID")}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
@@ -642,29 +676,36 @@ function NewsTab({ news, onAdd, onEdit, onDelete }: {
                         <img
                           src={item.imageUrl}
                           alt={item.title}
-                          className="w-16 h-12 rounded-lg object-cover border border-border"
+                          className="w-14 h-10 rounded-lg object-cover border border-border ring-1 ring-black/5 transition-transform group-hover:scale-105"
                         />
                       ) : (
-                        <div className="w-16 h-12 rounded-lg bg-muted flex items-center justify-center">
-                          <Image className="size-4 text-muted-foreground" />
+                        <div className="w-14 h-10 rounded-lg bg-muted flex items-center justify-center border border-border">
+                          <Image className="size-4 text-muted-foreground/40" />
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="hidden md:table-cell max-w-[200px]">
-                      <span className="text-muted-foreground text-xs line-clamp-2">{item.summary}</span>
+                    <TableCell className="hidden lg:table-cell max-w-[240px]">
+                      <span className="text-muted-foreground text-xs leading-relaxed line-clamp-2">
+                        {item.summary || "—"}
+                      </span>
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">
-                      <Badge variant="secondary">{item.tag}</Badge>
+                      <span className={`k-tag ${tagBadgeClass[item.tagColor] || "k-accent-green"}`}>
+                        {item.tag}
+                      </span>
                     </TableCell>
                     <TableCell className="hidden sm:table-cell text-muted-foreground text-xs whitespace-nowrap">
-                      {new Date(item.publishedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                      <div className="flex items-center gap-1.5">
+                        <span className="size-1 rounded-full bg-muted-foreground/30" />
+                        {new Date(item.publishedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon-xs" onClick={() => onEdit(item)} title="Edit">
+                      <div className="flex items-center justify-end gap-0.5">
+                        <Button variant="ghost" size="icon-xs" onClick={() => onEdit(item)} title="Edit" className="hover:bg-blue-50 hover:text-blue-700">
                           <Pencil className="size-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon-xs" onClick={() => onDelete(item.id)} title="Hapus" className="text-destructive hover:text-destructive">
+                        <Button variant="ghost" size="icon-xs" onClick={() => onDelete(item.id)} title="Hapus" className="hover:bg-red-50 hover:text-red-700">
                           <Trash2 className="size-3.5" />
                         </Button>
                       </div>
@@ -679,37 +720,39 @@ function NewsTab({ news, onAdd, onEdit, onDelete }: {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between gap-3 mt-3">
+        <div className="flex items-center justify-between gap-3 mt-4">
           <span className="text-xs text-muted-foreground">
-            {startIndex + 1}–{Math.min(endIndex, news.length)} dari {news.length}
+            {startIndex + 1}–{Math.min(endIndex, sorted.length)} dari {sorted.length}
           </span>
           <div className="flex items-center gap-1">
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               disabled={safePage <= 1}
               onClick={() => setPage(p => Math.max(1, p - 1))}
+              className="h-8"
             >
-              <ChevronLeft className="size-4" />
+              <ChevronLeft className="size-3.5" />
             </Button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
               <Button
                 key={p}
-                variant={p === safePage ? "default" : "ghost"}
+                variant={p === safePage ? "default" : "outline"}
                 size="icon-xs"
-                className="min-w-[32px]"
+                className={`min-w-[32px] h-8 ${p === safePage ? "shadow-sm" : ""}`}
                 onClick={() => setPage(p)}
               >
                 {p}
               </Button>
             ))}
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               disabled={safePage >= totalPages}
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              className="h-8"
             >
-              <ChevronRight className="size-4" />
+              <ChevronRight className="size-3.5" />
             </Button>
           </div>
         </div>
