@@ -2,6 +2,9 @@ import { useState, useEffect } from "react"
 import { Link } from "react-router"
 import { api, type Stats, type NewsItem, type Campaign } from "@/lib/api"
 import { formatRp } from "@/lib/utils"
+import { X, Calendar, Loader2 } from "lucide-react"
+
+const INITIAL_SHOWN = 3
 
 export default function Beranda() {
   const [stats, setStats] = useState<Stats | null>(null)
@@ -28,6 +31,39 @@ export default function Beranda() {
     }
     load()
   }, [])
+
+  const [showAllNews, setShowAllNews] = useState(false)
+  const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null)
+  const [reading, setReading] = useState(false)
+  const displayedNews = showAllNews ? news : news.slice(0, INITIAL_SHOWN)
+
+  async function handleReadNews(id: number) {
+    setReading(true)
+    try {
+      const item = await api.news.get(id)
+      setSelectedNews(item)
+    } catch (e) {
+      console.error("Failed to load news:", e)
+    } finally {
+      setReading(false)
+    }
+  }
+
+  function closeReader() {
+    setSelectedNews(null)
+    setReading(false)
+  }
+
+  // Close on Escape
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") closeReader()
+    }
+    if (selectedNews) {
+      document.addEventListener("keydown", onKey)
+      return () => document.removeEventListener("keydown", onKey)
+    }
+  }, [selectedNews])
 
   const tagColors: Record<string, string> = {
     green: "k-accent-green",
@@ -161,8 +197,20 @@ export default function Beranda() {
             {loading ? (
               <p className="k-text-muted">Memuat berita...</p>
             ) : (
-              news.map((item) => (
-                <article className="k-card" key={item.id}>
+              displayedNews.map((item) => (
+                <article
+                  className="k-card k-news-card-clickable"
+                  key={item.id}
+                  onClick={() => handleReadNews(item.id)}
+                >
+                  {item.imageUrl && (
+                    <img
+                      src={item.imageUrl}
+                      alt={item.title}
+                      className="k-news-image"
+                      loading="lazy"
+                    />
+                  )}
                   <span className={`k-tag ${tagColors[item.tagColor] || "k-accent-green"}`}>
                     {item.tag}
                   </span>
@@ -170,6 +218,16 @@ export default function Beranda() {
                   <p>{item.summary}</p>
                 </article>
               ))
+            )}
+            {news.length > INITIAL_SHOWN && (
+              <div style={{ textAlign: "center", marginTop: "1.5rem" }}>
+                <button
+                  className="k-btn k-btn-ghost"
+                  onClick={() => setShowAllNews(!showAllNews)}
+                >
+                  {showAllNews ? "Tampilkan lebih sedikit" : `Baca selanjutnya (${news.length - INITIAL_SHOWN} lainnya)`}
+                </button>
+              </div>
             )}
           </div>
           <div className="k-story-grid" style={{ marginTop: "1rem" }}>
@@ -190,6 +248,50 @@ export default function Beranda() {
           </div>
         </div>
       </section>
+
+      {/* News Reader Overlay */}
+      {(selectedNews || reading) && (
+        <div className="k-reader-overlay" onClick={closeReader}>
+          <div className="k-reader" onClick={(e) => e.stopPropagation()}>
+            {reading ? (
+              <div className="k-reader-loading">
+                <Loader2 size={32} className="k-spin" />
+                <span>Memuat berita...</span>
+              </div>
+            ) : selectedNews && (
+              <>
+                <button className="k-reader-close" onClick={closeReader}>
+                  <X size={20} />
+                </button>
+                {selectedNews.imageUrl && (
+                  <img
+                    src={selectedNews.imageUrl}
+                    alt={selectedNews.title}
+                    className="k-reader-image"
+                  />
+                )}
+                <div className="k-reader-body">
+                  <div className="k-reader-meta">
+                    <span className={`k-tag ${tagColors[selectedNews.tagColor] || "k-accent-green"}`}>
+                      {selectedNews.tag}
+                    </span>
+                    <span className="k-reader-date">
+                      <Calendar size={14} />
+                      {new Date(selectedNews.publishedAt).toLocaleDateString("id-ID", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </span>
+                  </div>
+                  <h1 className="k-reader-title">{selectedNews.title}</h1>
+                  <p className="k-reader-summary">{selectedNews.summary}</p>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

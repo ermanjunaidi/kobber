@@ -16,7 +16,7 @@ func main() {
 	// Database connection
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
-		databaseURL = "postgres://kobber:kobber123@localhost:5433/kobber?sslmode=disable"
+		databaseURL = "postgres://kobber:kobber123@localhost:5434/kobber?sslmode=disable"
 	}
 
 	if err := db.Connect(databaseURL); err != nil {
@@ -88,6 +88,24 @@ func main() {
 	// Admin (protected with JWT middleware)
 	admin := api.Group("/admin", handlers.AuthMiddleware)
 	admin.Get("/stats", handlers.GetAdminStats)
+
+	// Serve built frontend (production) — must be after API routes
+	distPath := os.Getenv("FRONTEND_DIST")
+	if distPath == "" {
+		distPath = "./dist"
+	}
+	if _, err := os.Stat(distPath); err == nil {
+		log.Printf("Serving frontend from %s", distPath)
+		// Serve static frontend assets (JS, CSS, fonts, images)
+		app.Static("/", distPath, fiber.Static{
+			Index: "index.html",
+		})
+		// SPA fallback: serve index.html for all unmatched GET routes (e.g. /tentang, /admin)
+		// Uploads and API routes are already handled above, so they won't reach here
+		app.Get("/*", func(c *fiber.Ctx) error {
+			return c.SendFile(distPath + "/index.html")
+		})
+	}
 
 	// Start server
 	port := os.Getenv("PORT")

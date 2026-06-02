@@ -13,21 +13,21 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Beranda />} />
-            <Route path="/tentang" element={<Tentang />} />
-            <Route path="/isu-brebes" element={<IsuBrebes />} />
-            <Route path="/bergabung" element={<Bergabung />} />
-            <Route path="/donasi" element={<Donasi />} />
-            <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/admin" element={
-              <ProtectedRoute>
-                <Admin />
-              </ProtectedRoute>
-            } />
-          </Routes>
-        </Layout>
+        <Routes>
+          {/* Public routes with layout */}
+          <Route path="/" element={<Layout><Beranda /></Layout>} />
+          <Route path="/tentang" element={<Layout><Tentang /></Layout>} />
+          <Route path="/isu-brebes" element={<Layout><IsuBrebes /></Layout>} />
+          <Route path="/bergabung" element={<Layout><Bergabung /></Layout>} />
+          <Route path="/donasi" element={<Layout><Donasi /></Layout>} />
+          {/* Admin routes without layout */}
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin" element={
+            <ProtectedRoute>
+              <Admin />
+            </ProtectedRoute>
+          } />
+        </Routes>
       </AuthProvider>
     </BrowserRouter>
   )

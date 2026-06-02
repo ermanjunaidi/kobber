@@ -38,6 +38,8 @@ import {
   LogOut,
   Upload,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 
 interface AdminOverview {
@@ -82,6 +84,7 @@ export default function Admin() {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function loadAll() {
@@ -115,7 +118,12 @@ export default function Admin() {
   // --- News CRUD ---
   function openNewsDialog(mode: "add" | "edit", item?: NewsItem) {
     setModalMode(mode)
-    setPreviewImage(null)
+    // Revoke blob URL to avoid memory leak
+    setPreviewImage(prev => {
+      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev)
+      return null
+    })
+    setSelectedFile(null)
     if (mode === "edit" && item) {
       setNewsForm({ title: item.title, summary: item.summary, tag: item.tag, tagColor: item.tagColor, imageUrl: item.imageUrl || "" })
       setEditingId(item.id)
@@ -132,11 +140,15 @@ export default function Admin() {
     setSaving(true)
     try {
       if (modalMode === "add") {
-        await api.news.create(newsForm)
+        const created = await api.news.create(newsForm)
+        if (selectedFile) {
+          await api.news.uploadImage(created.id, selectedFile)
+        }
       } else if (editingId !== null) {
         await api.news.update(editingId, newsForm)
       }
       setShowNewsDialog(false)
+      setSelectedFile(null)
       await loadAll()
     } catch (e) {
       alert(e instanceof Error ? e.message : "Gagal menyimpan")
@@ -147,7 +159,7 @@ export default function Admin() {
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (!file || !editingId) return
+    if (!file) return
 
     // Validate file type
     const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"]
@@ -164,10 +176,17 @@ export default function Admin() {
 
     setUploading(true)
     try {
-      const result = await api.news.uploadImage(editingId, file)
-      setNewsForm(prev => ({ ...prev, imageUrl: result.imageUrl }))
-      setPreviewImage(result.imageUrl)
-      await loadAll()
+      if (modalMode === "add") {
+        // In add mode, store file for upload after create + show local preview
+        setSelectedFile(file)
+        setPreviewImage(URL.createObjectURL(file))
+      } else if (editingId !== null) {
+        // In edit mode, upload immediately
+        const result = await api.news.uploadImage(editingId, file)
+        setNewsForm(prev => ({ ...prev, imageUrl: result.imageUrl }))
+        setPreviewImage(result.imageUrl)
+        await loadAll()
+      }
     } catch (e) {
       alert(e instanceof Error ? e.message : "Gagal mengupload gambar")
     } finally {
@@ -314,7 +333,7 @@ export default function Admin() {
 
       {/* News Dialog */}
       <Dialog open={showNewsDialog} onOpenChange={setShowNewsDialog}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{modalMode === "add" ? "Tambah Berita" : "Edit Berita"}</DialogTitle>
           </DialogHeader>
@@ -379,7 +398,11 @@ export default function Admin() {
                     size="icon-sm"
                     className="absolute top-2 right-2 bg-background/80 hover:bg-background"
                     onClick={() => {
-                      setPreviewImage(null)
+                      setPreviewImage(prev => {
+                        if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev)
+                        return null
+                      })
+                      setSelectedFile(null)
                       setNewsForm(prev => ({ ...prev, imageUrl: "" }))
                     }}
                   >
@@ -395,7 +418,7 @@ export default function Admin() {
                   <Upload className="mx-auto size-6 text-muted-foreground mb-1" />
                   <p className="text-xs text-muted-foreground">
                     {modalMode === "add"
-                      ? "Upload setelah menyimpan berita"
+                      ? "Klik untuk pilih gambar"
                       : "Klik untuk upload gambar"}
                   </p>
                 </div>
@@ -406,11 +429,11 @@ export default function Admin() {
                 accept="image/jpeg,image/png,image/webp,image/gif"
                 className="hidden"
                 onChange={handleImageUpload}
-                disabled={modalMode === "add" || uploading}
+                disabled={uploading}
               />
-              {modalMode === "add" && (
+              {!previewImage && (
                 <p className="text-xs text-muted-foreground">
-                  Simpan berita terlebih dahulu, lalu upload gambar.
+                  {modalMode === "add" ? "Pilih gambar untuk diupload setelah berita tersimpan." : "Klik untuk upload gambar."}
                 </p>
               )}
               {uploading && <p className="text-xs text-muted-foreground">Mengupload gambar...</p>}
@@ -550,12 +573,26 @@ function OverviewTab({ overview, donations, contacts, news, members }: {
 }
 
 // --- News Tab ---
+const NEWS_PER_PAGE = 10
+
 function NewsTab({ news, onAdd, onEdit, onDelete }: {
   news: NewsItem[]
   onAdd: () => void
   onEdit: (item: NewsItem) => void
   onDelete: (id: number) => void
 }) {
+  const [page, setPage] = useState(1)
+  const totalPages = Math.max(1, Math.ceil(news.length / NEWS_PER_PAGE))
+  const safePage = Math.min(page, totalPages)
+  const startIndex = (safePage - 1) * NEWS_PER_PAGE
+  const endIndex = startIndex + NEWS_PER_PAGE
+  const paginatedNews = news.slice(startIndex, endIndex)
+
+  // Reset to page 1 when news list changes
+  useEffect(() => {
+    if (page > totalPages) setPage(1)
+  }, [news.length, totalPages, page])
+
   return (
     <div>
       <div className="flex items-center justify-between flex-wrap gap-3" style={{ marginBottom: "1rem" }}>
@@ -577,14 +614,14 @@ function NewsTab({ news, onAdd, onEdit, onDelete }: {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {news.length === 0 ? (
+              {paginatedNews.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                    Belum ada berita
+                    {news.length === 0 ? "Belum ada berita" : "Halaman ini kosong"}
                   </TableCell>
                 </TableRow>
               ) : (
-                news.map((item) => (
+                paginatedNews.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="text-muted-foreground text-xs font-mono">{item.id}</TableCell>
                     <TableCell className="font-medium max-w-[250px]">
@@ -639,6 +676,44 @@ function NewsTab({ news, onAdd, onEdit, onDelete }: {
           </Table>
         </div>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between gap-3 mt-3">
+          <span className="text-xs text-muted-foreground">
+            {startIndex + 1}–{Math.min(endIndex, news.length)} dari {news.length}
+          </span>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={safePage <= 1}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+              <Button
+                key={p}
+                variant={p === safePage ? "default" : "ghost"}
+                size="icon-xs"
+                className="min-w-[32px]"
+                onClick={() => setPage(p)}
+              >
+                {p}
+              </Button>
+            ))}
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={safePage >= totalPages}
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
