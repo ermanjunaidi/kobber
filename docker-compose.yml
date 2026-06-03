@@ -53,6 +53,7 @@ services:
     command: tunnel run --token ${TUNNEL_TOKEN}
     environment:
       TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+    restart: unless-stopped
     profiles:
       - tunnel
       - prod
