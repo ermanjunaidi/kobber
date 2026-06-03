@@ -1,6 +1,7 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth"
 import { useNavigate } from "react-router"
+import { Shield, User, Lock, Loader2, AlertCircle } from "lucide-react"
 
 export default function AdminLogin() {
   const { login, isAuthenticated } = useAuth()
@@ -9,6 +10,11 @@ export default function AdminLogin() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   if (isAuthenticated) {
     navigate("/admin", { replace: true })
@@ -30,74 +36,102 @@ export default function AdminLogin() {
   }
 
   return (
-    <div className="k-page" style={{ padding: "4rem 0" }}>
-      <div className="k-container" style={{ maxWidth: "440px", margin: "0 auto" }}>
-        <div className="k-panel" style={{ textAlign: "center", padding: "2.5rem" }}>
-          <div className="k-logo-mark" style={{ margin: "0 auto 1rem", width: 56, height: 56, borderRadius: 16, fontSize: 24 }}>
-            K
+    <div className="k-admin-login-page">
+      {/* Animated background orbs */}
+      <div className="k-login-orb k-login-orb-1" />
+      <div className="k-login-orb k-login-orb-2" />
+      <div className="k-login-orb k-login-orb-3" />
+
+      {/* Grid overlay */}
+      <div className="k-login-grid" />
+
+      <div className={`k-login-wrapper ${mounted ? "k-login-visible" : ""}`}>
+        {/* Logo section */}
+        <div className="k-login-brand">
+          <div className="k-login-logo">
+            <Shield size={28} />
           </div>
-          <h1 style={{ margin: 0 }}>Login Admin</h1>
-          <p className="k-text-muted" style={{ marginTop: ".35rem" }}>Masuk ke dashboard admin KOBBER</p>
+          <span className="k-login-brand-name">KOBBER</span>
+          <span className="k-login-brand-sub">Admin Dashboard</span>
+        </div>
+
+        {/* Login card */}
+        <div className="k-login-card">
+          <div className="k-login-card-header">
+            <h1 className="k-login-title">Selamat Datang</h1>
+            <p className="k-login-subtitle">Masuk ke dashboard admin KOBBER</p>
+          </div>
 
           {error && (
-            <div style={{
-              padding: ".75rem",
-              borderRadius: ".5rem",
-              marginTop: "1rem",
-              background: "var(--k-danger-bg)",
-              color: "var(--k-danger)",
-              fontSize: ".9rem",
-            }}>
-              {error}
+            <div className="k-login-error">
+              <AlertCircle size={16} />
+              <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} style={{ marginTop: "1.5rem", display: "grid", gap: "1rem" }}>
-            <input
-              type="text"
-              placeholder="Username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              style={{
-                width: "100%",
-                padding: ".75rem 1rem",
-                borderRadius: ".75rem",
-                border: "1px solid var(--k-border)",
-                background: "transparent",
-                color: "inherit",
-                fontSize: "1rem",
-              }}
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={{
-                width: "100%",
-                padding: ".75rem 1rem",
-                borderRadius: ".75rem",
-                border: "1px solid var(--k-border)",
-                background: "transparent",
-                color: "inherit",
-                fontSize: "1rem",
-              }}
-            />
+          <form onSubmit={handleSubmit} className="k-login-form">
+            <div className="k-login-field">
+              <label htmlFor="username" className="k-login-label">
+                <User size={14} />
+                Username
+              </label>
+              <input
+                id="username"
+                type="text"
+                placeholder="Masukkan username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                autoFocus
+                className="k-login-input"
+              />
+              <div className="k-login-input-glow" />
+            </div>
+
+            <div className="k-login-field">
+              <label htmlFor="password" className="k-login-label">
+                <Lock size={14} />
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                placeholder="Masukkan password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="k-login-input"
+              />
+              <div className="k-login-input-glow" />
+            </div>
+
             <button
               type="submit"
-              className="k-btn k-btn-primary"
+              className="k-login-btn"
               disabled={loading}
-              style={{ width: "100%", justifyContent: "center", padding: ".85rem" }}
             >
-              {loading ? "Memproses..." : "Login"}
+              {loading ? (
+                <>
+                  <Loader2 size={18} className="k-login-spin" />
+                  Memproses...
+                </>
+              ) : (
+                <>
+                  <Lock size={16} />
+                  Masuk
+                </>
+              )}
             </button>
           </form>
 
-          <p className="k-tiny k-text-muted" style={{ marginTop: "1.5rem" }}>
-            Default: admin / kobber123
-          </p>
+          <div className="k-login-footer">
+            <div className="k-login-divider">
+              <span>Info</span>
+            </div>
+            <p className="k-login-credentials">
+              Default: <code>admin</code> / <code>kobber123</code>
+            </p>
+          </div>
         </div>
       </div>
     </div>

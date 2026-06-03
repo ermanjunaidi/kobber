@@ -249,6 +249,13 @@ export default function Beranda() {
         </div>
       </section>
 
+      {/* Admin Login */}
+      <div style={{ textAlign: "center", padding: "2rem 0 0" }}>
+        <Link to="/admin/login" style={{ color: "var(--k-text-faint)", fontSize: ".8rem", textDecoration: "none" }}>
+          Admin Login
+        </Link>
+      </div>
+
       {/* News Reader Overlay */}
       {(selectedNews || reading) && (
         <div className="k-reader-overlay" onClick={closeReader}>

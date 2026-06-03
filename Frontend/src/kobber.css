@@ -236,6 +236,7 @@ strong {
   font-size: var(--k-text-sm);
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: .55rem;
   transition: all 0.15s ease;
   cursor: pointer;
@@ -1115,6 +1116,400 @@ h3 { font-size: var(--k-text-lg); }
   to {
     opacity: 1;
     transform: none;
+  }
+}
+
+/* ============================
+   Admin Login Page
+   ============================ */
+
+.k-admin-login-page {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0b2b1a 0%, #0d3521 25%, #0f3d27 50%, #1a3f4a 75%, #0d2b36 100%);
+  overflow: hidden;
+  padding: 1.5rem;
+}
+
+[data-theme="dark"] .k-admin-login-page {
+  background: linear-gradient(135deg, #060f0a 0%, #091a10 25%, #0c2215 50%, #0c1e2a 75%, #07151c 100%);
+}
+
+/* Animated orbs */
+.k-login-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.4;
+  animation: k-login-orb-float 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.k-login-orb-1 {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(30, 132, 73, 0.5), transparent 70%);
+  top: -150px;
+  right: -100px;
+  animation-delay: 0s;
+}
+
+.k-login-orb-2 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(26, 82, 118, 0.4), transparent 70%);
+  bottom: -100px;
+  left: -80px;
+  animation-delay: -3s;
+}
+
+.k-login-orb-3 {
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(108, 52, 131, 0.3), transparent 70%);
+  top: 50%;
+  left: 60%;
+  animation-delay: -5s;
+}
+
+@keyframes k-login-orb-float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(30px, -40px) scale(1.05); }
+  50% { transform: translate(-20px, 20px) scale(0.95); }
+  75% { transform: translate(40px, 30px) scale(1.02); }
+}
+
+/* Grid overlay */
+.k-login-grid {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+}
+
+/* Wrapper */
+.k-login-wrapper {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.k-login-wrapper.k-login-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Brand section */
+.k-login-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  animation: k-login-fade-down 0.6s 0.2s both;
+}
+
+.k-login-logo {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #1e8449, #1a5276);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 0 8px 32px rgba(30, 132, 73, 0.35);
+  margin-bottom: 0.25rem;
+}
+
+.k-login-brand-name {
+  font-family: var(--k-font-display);
+  font-weight: 800;
+  font-size: 1.4rem;
+  color: white;
+  letter-spacing: 0.05em;
+}
+
+.k-login-brand-sub {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+/* Card */
+.k-login-card {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  padding: 2.25rem 2rem;
+  box-shadow: 
+    0 24px 80px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  animation: k-login-fade-up 0.6s 0.3s both;
+}
+
+[data-theme="dark"] .k-login-card {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.k-login-card-header {
+  text-align: center;
+  margin-bottom: 1.75rem;
+}
+
+.k-login-title {
+  font-family: var(--k-font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.k-login-subtitle {
+  margin-top: 0.35rem;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.9rem;
+  max-width: none;
+}
+
+/* Error */
+.k-login-error {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  background: rgba(156, 47, 36, 0.2);
+  border: 1px solid rgba(156, 47, 36, 0.35);
+  color: #f5a89e;
+  font-size: 0.85rem;
+  margin-bottom: 1.25rem;
+  animation: k-login-shake 0.4s ease;
+}
+
+@keyframes k-login-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+/* Form */
+.k-login-form {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.k-login-field {
+  position: relative;
+}
+
+.k-login-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.k-login-input {
+  width: 100%;
+  padding: 0.85rem 1.1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+  font-size: 1rem;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.25s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.k-login-input::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.k-login-input:focus {
+  border-color: rgba(79, 181, 115, 0.5);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(79, 181, 115, 0.1);
+}
+
+.k-login-input-glow {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #4fb573, transparent);
+  border-radius: 2px;
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translateX(-50%);
+  z-index: 2;
+}
+
+.k-login-input:focus ~ .k-login-input-glow {
+  width: 70%;
+}
+
+/* Button */
+.k-login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.9rem 1.25rem;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #1e8449, #1a5276);
+  color: white;
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+  margin-top: 0.25rem;
+}
+
+.k-login-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #2a9d56, #216a96);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.k-login-btn:hover::before {
+  opacity: 1;
+}
+
+.k-login-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(30, 132, 73, 0.35);
+}
+
+.k-login-btn:active {
+  transform: translateY(0);
+}
+
+.k-login-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.k-login-btn > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes k-login-spin {
+  to { transform: rotate(360deg); }
+}
+
+.k-login-spin {
+  animation: k-login-spin 0.8s linear infinite;
+}
+
+/* Footer */
+.k-login-footer {
+  margin-top: 1.5rem;
+}
+
+.k-login-divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.k-login-divider::before,
+.k-login-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.k-login-divider span {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.3);
+  font-weight: 600;
+}
+
+.k-login-credentials {
+  text-align: center;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.35);
+  max-width: none;
+  margin: 0;
+}
+
+.k-login-credentials code {
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Animations */
+@keyframes k-login-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes k-login-fade-down {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

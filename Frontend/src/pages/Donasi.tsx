@@ -7,7 +7,7 @@ export default function Donasi() {
   const [donations, setDonations] = useState<Donation[]>([])
   const [amount, setAmount] = useState(50000)
   const [customAmount, setCustomAmount] = useState("")
-  const [program, setProgram] = useState("USG ibu hamil")
+  const [program, setProgram] = useState("")
   const [donorName, setDonorName] = useState("")
   const [email, setEmail] = useState("")
   const [donationType, setDonationType] = useState<"once" | "monthly">("once")
@@ -132,7 +132,9 @@ export default function Donasi() {
                 />
               )}
               <div className="k-form-mock" style={{ marginTop: "1rem" }}>
-                <select
+                <input
+                  type="text"
+                  placeholder="Nama program (misal: USG ibu hamil)"
                   value={program}
                   onChange={(e) => setProgram(e.target.value)}
                   style={{
@@ -145,11 +147,7 @@ export default function Donasi() {
                     fontSize: "1rem",
                     marginBottom: ".75rem",
                   }}
-                >
-                  <option value="USG ibu hamil">Program: USG ibu hamil</option>
-                  <option value="Paket gizi balita">Program: Paket gizi balita</option>
-                  <option value="Persalinan darurat">Program: Persalinan darurat</option>
-                </select>
+                />
 
                 <div style={{ display: "flex", gap: ".5rem", marginBottom: ".75rem" }}>
                   <button

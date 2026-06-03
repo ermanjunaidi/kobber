@@ -637,7 +637,7 @@ function NewsTab({ news, onAdd, onEdit, onDelete }: {
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedNews.map((item, idx) => (
+                paginatedNews.map((item) => (
                   <TableRow
                     key={item.id}
                     className="group transition-colors hover:bg-muted/20"
