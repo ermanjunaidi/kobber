@@ -30,6 +30,28 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+  SidebarSeparator,
+} from "@/components/ui/sidebar"
+import {
+  LayoutDashboard,
+  Newspaper,
+  Users,
+  Heart,
+  MessageSquare,
+  TrendingUp,
+  BarChart3,
   Image,
   Plus,
   Pencil,
@@ -59,6 +81,66 @@ type Tab = "overview" | "news" | "members" | "donations" | "contacts" | "campaig
 
 const DEFAULT_NEWS_FORM = { title: "", summary: "", tag: "", tagColor: "green", imageUrl: "" }
 const DEFAULT_MEMBER_FORM = { name: "", category: "", contribution: "" }
+
+const sidebarItems: { tab: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { tab: "overview", label: "Ringkasan", icon: LayoutDashboard },
+  { tab: "news", label: "Berita", icon: Newspaper },
+  { tab: "members", label: "Anggota", icon: Users },
+  { tab: "donations", label: "Donasi", icon: Heart },
+  { tab: "contacts", label: "Kontak", icon: MessageSquare },
+  { tab: "campaign", label: "Kampanye", icon: TrendingUp },
+  { tab: "stats", label: "Statistik", icon: BarChart3 },
+]
+
+function AppSidebar({ activeTab, onTabChange }: {
+  activeTab: Tab
+  onTabChange: (tab: Tab) => void
+}) {
+  return (
+    <Sidebar collapsible="icon" variant="sidebar">
+      <SidebarHeader>
+        <div className="flex items-center gap-2 px-1 py-1">
+          <div
+            className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-green-600 to-blue-700 font-bold text-white text-xs shadow-sm"
+          >
+            K
+          </div>
+          <div className="flex flex-col group-data-[collapsible=icon]:hidden">
+            <span className="text-sm font-bold leading-tight">KOBBER</span>
+            <span className="text-[10px] text-muted-foreground leading-tight">Admin Dashboard</span>
+          </div>
+        </div>
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Menu</SidebarGroupLabel>
+          <SidebarMenu>
+            {sidebarItems.map((item) => (
+              <SidebarMenuItem key={item.tab}>
+                <SidebarMenuButton
+                  isActive={activeTab === item.tab}
+                  tooltip={item.label}
+                  onClick={() => onTabChange(item.tab)}
+                >
+                  <item.icon />
+                  <span>{item.label}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarSeparator />
+      <SidebarFooter>
+        <div className="px-1 py-1">
+          <p className="text-[10px] text-muted-foreground group-data-[collapsible=icon]:hidden px-2">
+            KOBBER v1.0
+          </p>
+        </div>
+      </SidebarFooter>
+    </Sidebar>
+  )
+}
 
 export default function Admin() {
   const { logout } = useAuth()
@@ -118,7 +200,6 @@ export default function Admin() {
   // --- News CRUD ---
   function openNewsDialog(mode: "add" | "edit", item?: NewsItem) {
     setModalMode(mode)
-    // Revoke blob URL to avoid memory leak
     setPreviewImage(prev => {
       if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev)
       return null
@@ -161,14 +242,12 @@ export default function Admin() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validate file type
     const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"]
     if (!allowedTypes.includes(file.type)) {
       alert("Hanya file JPG, PNG, WebP, dan GIF yang diizinkan")
       return
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       alert("Ukuran file maksimal 5MB")
       return
@@ -177,11 +256,9 @@ export default function Admin() {
     setUploading(true)
     try {
       if (modalMode === "add") {
-        // In add mode, store file for upload after create + show local preview
         setSelectedFile(file)
         setPreviewImage(URL.createObjectURL(file))
       } else if (editingId !== null) {
-        // In edit mode, upload immediately
         const result = await api.news.uploadImage(editingId, file)
         setNewsForm(prev => ({ ...prev, imageUrl: result.imageUrl }))
         setPreviewImage(result.imageUrl)
@@ -248,9 +325,10 @@ export default function Admin() {
 
   if (loading) {
     return (
-      <div className="k-page" style={{ padding: "3rem 0" }}>
-        <div className="k-container">
-          <p className="k-text-muted">Memuat dashboard...</p>
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin size-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">Memuat dashboard...</p>
         </div>
       </div>
     )
@@ -258,77 +336,72 @@ export default function Admin() {
 
   if (error) {
     return (
-      <div className="k-page" style={{ padding: "3rem 0" }}>
-        <div className="k-container">
-          <p style={{ color: "var(--k-danger)" }}>{error}</p>
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <p className="text-destructive text-sm mb-3">{error}</p>
           <Button variant="ghost" size="sm" onClick={loadAll}>
-          <RefreshCw /> Coba lagi
-        </Button>
+            <RefreshCw /> Coba lagi
+          </Button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="k-page" style={{ padding: "2rem 0" }}>
-      <div className="k-container">
-        {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-4" style={{ marginBottom: "1.5rem" }}>
-          <div>
-            <h1 style={{ margin: 0 }}>Admin Dashboard</h1>
-            <p className="k-text-muted" style={{ marginTop: ".25rem" }}>Kelola semua konten KOBBER</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={loadAll}>
-              <RefreshCw /> Refresh
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => { logout(); navigate("/admin/login") }}
-              className="text-destructive hover:text-destructive"
-            >
-              <LogOut /> Logout
-            </Button>
-          </div>
-        </div>
+    <SidebarProvider defaultOpen={true}>
+      <div className="flex min-h-screen w-full">
+        <AppSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+        <SidebarInset>
+          <div className="flex flex-1 flex-col">
+            {/* Top bar */}
+            <header className="flex h-12 items-center justify-between gap-3 border-b bg-background px-4 sticky top-0 z-10">
+              <div className="flex items-center gap-2">
+                <SidebarTrigger />
+                <div>
+                  <h2 className="text-sm font-semibold leading-tight">{tabLabels[activeTab]}</h2>
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="sm" onClick={loadAll}>
+                  <RefreshCw className="size-3.5" /> Refresh
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { logout(); navigate("/admin/login") }}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <LogOut className="size-3.5" /> Logout
+                </Button>
+              </div>
+            </header>
 
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-2" style={{ marginBottom: "1.5rem", borderBottom: "1px solid var(--k-border)", paddingBottom: ".75rem" }}>
-          {(Object.keys(tabLabels) as Tab[]).map((tab) => (
-            <Button
-              key={tab}
-              variant={activeTab === tab ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setActiveTab(tab)}
-            >
-              {tabLabels[tab]}
-            </Button>
-          ))}
-        </div>
-
-        {/* Tab Content */}
-        {activeTab === "overview" && overview && <OverviewTab overview={overview} donations={donations} contacts={contacts} news={news} members={members} />}
-        {activeTab === "news" && (
-          <NewsTab
-            news={news}
-            onAdd={() => openNewsDialog("add")}
-            onEdit={(item) => openNewsDialog("edit", item)}
-            onDelete={deleteNews}
-          />
-        )}
-        {activeTab === "members" && (
-          <MembersTab
-            members={members}
-            onAdd={() => openMemberDialog("add")}
-            onEdit={(item) => openMemberDialog("edit", item)}
-            onDelete={deleteMember}
-          />
-        )}
-        {activeTab === "donations" && <DonationsTab donations={donations} />}
-        {activeTab === "contacts" && <ContactsTab contacts={contacts} />}
-        {activeTab === "campaign" && campaign && <CampaignTab campaign={campaign} stats={stats} />}
-        {activeTab === "stats" && stats && <StatsTab stats={stats} overview={overview!} />}
+            {/* Content */}
+            <div className="flex-1 p-4 lg:p-6">
+              {activeTab === "overview" && overview && <OverviewTab overview={overview} donations={donations} contacts={contacts} news={news} members={members} />}
+              {activeTab === "news" && (
+                <NewsTab
+                  news={news}
+                  onAdd={() => openNewsDialog("add")}
+                  onEdit={(item) => openNewsDialog("edit", item)}
+                  onDelete={deleteNews}
+                />
+              )}
+              {activeTab === "members" && (
+                <MembersTab
+                  members={members}
+                  onAdd={() => openMemberDialog("add")}
+                  onEdit={(item) => openMemberDialog("edit", item)}
+                  onDelete={deleteMember}
+                />
+              )}
+              {activeTab === "donations" && <DonationsTab donations={donations} />}
+              {activeTab === "contacts" && <ContactsTab contacts={contacts} />}
+              {activeTab === "campaign" && campaign && <CampaignTab campaign={campaign} stats={stats} />}
+              {activeTab === "stats" && stats && overview && <StatsTab stats={stats} overview={overview} />}
+            </div>
+          </div>
+        </SidebarInset>
       </div>
 
       {/* News Dialog */}
@@ -495,7 +568,7 @@ export default function Admin() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </SidebarProvider>
   )
 }
 
@@ -520,19 +593,19 @@ function OverviewTab({ overview, donations, contacts, news, members }: {
           { value: formatRp(totalDonationRp), label: `Total Donasi (${donations.length} transaksi)` },
           { value: contacts.length, label: `Kontak Masuk${newContacts > 0 ? ` (${newContacts} baru)` : ""}` },
         ].map((item, i) => (
-          <div key={i} className="k-card" style={{ textAlign: "center" }}>
+          <div key={i} className="rounded-xl border bg-card p-5 text-center shadow-sm">
             <div style={{ fontSize: "clamp(1.4rem, 2vw, 2rem)", fontWeight: 800, fontFamily: "var(--k-font-display)" }}>{item.value}</div>
-            <span className="k-text-muted k-tiny">{item.label}</span>
+            <span className="text-xs text-muted-foreground">{item.label}</span>
           </div>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" style={{ marginBottom: "1.5rem" }}>
-        <div className="k-panel">
-          <h3>Progress Kampanye</h3>
+        <div className="rounded-xl border bg-card p-5 shadow-sm">
+          <h3 className="text-base font-semibold mb-0">Progress Kampanye</h3>
           <div className="flex justify-between mt-3">
             <span><strong>{formatRp(overview.campaignProgress.collected)}</strong></span>
-            <span className="k-text-muted">dari {formatRp(overview.campaignProgress.target)}</span>
+            <span className="text-muted-foreground text-sm">dari {formatRp(overview.campaignProgress.target)}</span>
           </div>
           <div className="k-kpi-bar">
             <i style={{ width: `${overview.campaignProgress.percentage}%` }} />
@@ -541,10 +614,10 @@ function OverviewTab({ overview, donations, contacts, news, members }: {
             <Badge variant="secondary">{Math.round(overview.campaignProgress.percentage)}% tercapai</Badge>
           </div>
         </div>
-        <div className="k-panel">
-          <h3>Donasi Bulanan</h3>
+        <div className="rounded-xl border bg-card p-5 shadow-sm">
+          <h3 className="text-base font-semibold mb-0">Donasi Bulanan</h3>
           <div style={{ fontSize: "clamp(1.4rem, 2vw, 1.8rem)", fontWeight: 800, fontFamily: "var(--k-font-display)", marginTop: ".5rem" }}>{formatRp(monthlyDonations)}</div>
-          <p className="k-text-muted">Total dari donasi rutin bulanan</p>
+          <p className="text-sm text-muted-foreground">Total dari donasi rutin bulanan</p>
           <div className="k-kpi-bar">
             <i style={{ width: `${donations.length > 0 ? (monthlyDonations / totalDonationRp) * 100 : 0}%`, background: "var(--k-gold)" }} />
           </div>
@@ -557,12 +630,12 @@ function OverviewTab({ overview, donations, contacts, news, members }: {
           { title: "Anggota Terbaru", items: members.slice(0, 4).map(m => ({ primary: m.name, secondary: m.category })) },
           { title: "Kontak Terbaru", items: contacts.slice(0, 4).map(c => ({ primary: c.name, secondary: `${c.category} • ${c.contact}` })) },
         ].map((section, i) => (
-          <div key={i} className="k-panel">
-            <h3>{section.title}</h3>
+          <div key={i} className="rounded-xl border bg-card p-5 shadow-sm">
+            <h3 className="text-base font-semibold mb-3">{section.title}</h3>
             {section.items.map((item, j) => (
               <div key={j} style={{ padding: ".5rem 0", borderBottom: "1px solid var(--k-border)" }}>
                 <div style={{ fontWeight: 600, fontSize: ".9rem" }}>{item.primary}</div>
-                <div className="k-tiny k-text-muted">{item.secondary}</div>
+                <div className="text-xs text-muted-foreground">{item.secondary}</div>
               </div>
             ))}
           </div>
@@ -590,7 +663,6 @@ function NewsTab({ news, onAdd, onEdit, onDelete }: {
   onDelete: (id: number) => void
 }) {
   const [page, setPage] = useState(1)
-  // Sort by ID descending (newest first)
   const sorted = useMemo(() => [...news].sort((a, b) => b.id - a.id), [news])
   const totalPages = Math.max(1, Math.ceil(sorted.length / NEWS_PER_PAGE))
   const safePage = Math.min(page, totalPages)
@@ -598,7 +670,6 @@ function NewsTab({ news, onAdd, onEdit, onDelete }: {
   const endIndex = startIndex + NEWS_PER_PAGE
   const paginatedNews = sorted.slice(startIndex, endIndex)
 
-  // Reset to page 1 when news list changes
   useEffect(() => {
     if (page > totalPages) setPage(1)
   }, [news.length, totalPages, page])
@@ -647,7 +718,6 @@ function NewsTab({ news, onAdd, onEdit, onDelete }: {
                     </TableCell>
                     <TableCell className="font-medium max-w-[280px]">
                       <div className="flex items-start gap-2.5">
-                        {/* Mobile thumbnail */}
                         <div className="md:hidden size-10 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
                           {item.imageUrl ? (
                             <img src={item.imageUrl} alt="" className="size-full object-cover" />
@@ -659,7 +729,6 @@ function NewsTab({ news, onAdd, onEdit, onDelete }: {
                         </div>
                         <div className="min-w-0">
                           <div className="truncate font-semibold text-sm">{item.title}</div>
-                          {/* Mobile meta */}
                           <div className="flex items-center gap-2 mt-1 md:hidden">
                             <span className={`k-tag ${tagBadgeClass[item.tagColor] || "k-accent-green"}`}>
                               {item.tag}
@@ -718,7 +787,6 @@ function NewsTab({ news, onAdd, onEdit, onDelete }: {
         </div>
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between gap-3 mt-4">
           <span className="text-xs text-muted-foreground">
@@ -925,14 +993,14 @@ function ContactsTab({ contacts }: { contacts: ContactSubmission[] }) {
 function CampaignTab({ campaign, stats }: { campaign: Campaign; stats: Stats | null }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <div className="k-panel k-panel-accent-gold">
-        <h2>Kampanye Aktif</h2>
+      <div className="rounded-xl border bg-card p-5 shadow-sm" style={{ background: "var(--k-gold-bg)" }}>
+        <h2 className="text-lg font-bold">Kampanye Aktif</h2>
         <h3 style={{ marginTop: ".75rem" }}>{campaign.title}</h3>
         <p>{campaign.description}</p>
         <div style={{ marginTop: "1rem" }}>
           <div className="flex justify-between">
             <span><strong>{formatRp(campaign.collected)}</strong></span>
-            <span className="k-text-muted">Target: {formatRp(campaign.target)}</span>
+            <span className="text-muted-foreground text-sm">Target: {formatRp(campaign.target)}</span>
           </div>
           <div className="k-kpi-bar" style={{ marginTop: ".5rem" }}>
             <i style={{ width: `${campaign.percentage}%`, background: "linear-gradient(90deg, var(--k-gold), var(--k-primary))" }} />
@@ -942,20 +1010,20 @@ function CampaignTab({ campaign, stats }: { campaign: Campaign; stats: Stats | n
           </div>
         </div>
       </div>
-      <div className="k-panel">
-        <h2>Statistik Terkait</h2>
+      <div className="rounded-xl border bg-card p-5 shadow-sm">
+        <h2 className="text-lg font-bold">Statistik Terkait</h2>
         {stats && (
           <div style={{ display: "grid", gap: ".75rem", marginTop: ".75rem" }}>
             <div className="flex items-center justify-between">
-              <span className="k-text-muted">Lembaga Kolaborasi</span>
+              <span className="text-muted-foreground text-sm">Lembaga Kolaborasi</span>
               <strong>{stats.organizations}+</strong>
             </div>
             <div className="flex items-center justify-between">
-              <span className="k-text-muted">Penerima Manfaat</span>
+              <span className="text-muted-foreground text-sm">Penerima Manfaat</span>
               <strong>{stats.beneficiaries.toLocaleString("id-ID")}</strong>
             </div>
             <div className="flex items-center justify-between">
-              <span className="k-text-muted">Dukungan Terpetakan</span>
+              <span className="text-muted-foreground text-sm">Dukungan Terpetakan</span>
               <strong>{formatRp(stats.fundingRp)}</strong>
             </div>
           </div>
@@ -975,16 +1043,16 @@ function StatsTab({ stats, overview }: { stats: Stats; overview: AdminOverview }
           { value: stats.beneficiaries.toLocaleString("id-ID"), label: "Penerima Manfaat" },
           { value: formatRp(stats.fundingRp), label: "Dukungan Terpetakan" },
         ].map((item, i) => (
-          <div key={i} className="k-card" style={{ textAlign: "center" }}>
+          <div key={i} className="rounded-xl border bg-card p-5 text-center shadow-sm">
             <div style={{ fontSize: "clamp(1.5rem, 2.5vw, 2.5rem)", fontWeight: 800, fontFamily: "var(--k-font-display)" }}>{item.value}</div>
-            <span className="k-text-muted">{item.label}</span>
+            <span className="text-sm text-muted-foreground">{item.label}</span>
           </div>
         ))}
       </div>
 
-      <div className="k-panel">
-        <h3>Database Summary</h3>
-        <div className="overflow-x-auto mt-3">
+      <div className="rounded-xl border bg-card p-5 shadow-sm">
+        <h3 className="text-base font-semibold mb-3">Database Summary</h3>
+        <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>

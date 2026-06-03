@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router"
 import { AuthProvider, ProtectedRoute } from "@/lib/auth"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import Layout from "@/components/Layout"
 import Beranda from "@/pages/Beranda"
 import Tentang from "@/pages/Tentang"
@@ -13,6 +14,7 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <TooltipProvider>
         <Routes>
           {/* Public routes with layout */}
           <Route path="/" element={<Layout><Beranda /></Layout>} />
@@ -28,6 +30,7 @@ function App() {
             </ProtectedRoute>
           } />
         </Routes>
+        </TooltipProvider>
       </AuthProvider>
     </BrowserRouter>
   )
