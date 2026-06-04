@@ -1,0 +1,57 @@
+# =============================================================================
+#  Traefik Reverse Proxy — Shared entry point for all Docker apps
+# =============================================================================
+# Cara pakai:
+#   1. docker compose up -d
+#   2. Hubungkan app lain ke network "traefik-public" + tambahkan labels
+#   3. Update cloudflared/config.yml untuk routing domain ke http://traefik:80
+#
+# Lihat README.md untuk panduan lengkap.
+
+services:
+  traefik:
+    image: traefik:v3.7
+    container_name: traefik
+    restart: unless-stopped
+    ports:
+      # Hanya Traefik yang expose port ke host
+      - "80:80"     # HTTP (cloudflared routing)
+      # - "443:443" # HTTPS — kalau pakai Let's Encrypt langsung (opsional)
+    networks:
+      - traefik-public
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Untuk persistent Let's Encrypt (opsional)
+      # - ./traefik/acme.json:/acme.json
+    command:
+      # ── Provider ──
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=traefik-public"
+
+      # ── Entrypoints ──
+      - "--entrypoints.web.address=:80"
+      # - "--entrypoints.websecure.address=:443"  # Kalau pakai HTTPS
+
+      # ── Dashboard (opsional, akses via traefik.domain.com) ──
+      - "--api.dashboard=true"
+      - "--api.debug=false"
+
+      # ── Logging ──
+      - "--log.level=INFO"
+      - "--accesslog=true"
+
+    labels:
+      # Dashboard — enable & proteksi dengan auth (lihat README)
+      - "traefik.enable=true"
+      # Dashboard nonaktif dulu (aktifkan nanti dengan auth)
+      # - "traefik.http.routers.dashboard.rule=Host(`traefik.raportns.my.id`)"
+      # - "traefik.http.routers.dashboard.service=api@internal"
+      # - "traefik.http.routers.dashboard.middlewares=auth"
+      # # Basic auth middleware (ganti user:password dengan htpasswd)
+      # # - "traefik.http.middlewares.auth.basicauth.users=admin:$$2y$$10$$..."
+      # - "traefik.http.services.dashboard.loadbalancer.server.port=8080"
+
+networks:
+  traefik-public:
+    external: true

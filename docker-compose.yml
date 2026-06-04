@@ -36,8 +36,13 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    # Port 8080 hanya di-expose di development (local testing)
+    # Di production, routing dilakukan oleh Traefik via network traefik-public
     ports:
       - "8080:8080"
+    networks:
+      - default
+      - traefik-public
     environment:
       DATABASE_URL: postgres://kobber:kobber123@postgres:5432/kobber?sslmode=disable
       PORT: "8080"
@@ -47,12 +52,20 @@ services:
       postgres:
         condition: service_healthy
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kobber.rule=Host(`raportns.my.id`)"
+      - "traefik.http.routers.kobber.entrypoints=web"
+      - "traefik.http.services.kobber.loadbalancer.server.port=8080"
 
   cloudflared:
     image: cloudflare/cloudflared:latest
-    command: tunnel run --token ${TUNNEL_TOKEN}
-    environment:
-      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+    command: tunnel --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./cloudflared:/etc/cloudflared
+    networks:
+      - default
+      - traefik-public
     restart: unless-stopped
     profiles:
       - tunnel
@@ -62,3 +75,7 @@ services:
 
 volumes:
   pgdata:
+
+networks:
+  traefik-public:
+    external: true

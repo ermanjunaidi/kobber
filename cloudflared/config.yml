@@ -1,0 +1,30 @@
+tunnel: 2e556e7e-ff20-459a-858d-a618e8e5e236
+credentials-file: /etc/cloudflared/credentials.json
+
+# Semua traffic dari tunnel dikirim ke Traefik (port 80).
+# Traefik yang akan merouting ke masing-masing service berdasarkan Host header.
+#
+# Cara nambah project baru:
+#   1. Tambahkan hostname di sini → service: http://traefik:80
+#   2. Di Cloudflare Dashboard, buat CNAME: subdomain → tunnel-id.cfargotunnel.com
+#   3. Di docker-compose project, tambah network + labels Traefik
+#
+ingress:
+  # ── Kobber (Komunitas Brebes Bersama) ──
+  - hostname: raportns.my.id
+    service: http://traefik:80
+
+  # ── Simanur (SIM Masjid) ──
+  - hostname: simanur.raportns.my.id
+    service: http://traefik:80
+
+  # ── Tamzgarage (Bengkel Pro) ──
+  - hostname: bengkel.raportns.my.id
+    service: http://traefik:80
+
+  # ── Bendahara (Buku Kas) ──
+  - hostname: bendahara.raportns.my.id
+    service: http://traefik:80
+
+  # Catch-all rule (required for local config)
+  - service: http_status:404

@@ -18,3 +18,6 @@ backend/uploads/
 # Environment
 .env
 .env.local
+
+# Cloudflare tunnel credentials (contains tunnel secret)
+cloudflared/credentials.json
