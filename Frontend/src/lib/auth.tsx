@@ -13,12 +13,35 @@ const AuthContext = createContext<AuthContextType | null>(null)
 
 const TOKEN_KEY = "kobber_admin_token"
 
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const parts = token.split(".")
+    if (parts.length !== 3) return null
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/")
+    const decoded = atob(base64)
+    return JSON.parse(decoded)
+  } catch {
+    return null
+  }
+}
+
+function isTokenExpired(token: string): boolean {
+  const payload = decodeJwtPayload(token)
+  if (!payload || typeof payload.exp !== "number") return false
+  return payload.exp * 1000 < Date.now()
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY))
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Validate token exists (could add expiry check here)
+    // Check if stored token is expired
+    const stored = localStorage.getItem(TOKEN_KEY)
+    if (stored && isTokenExpired(stored)) {
+      localStorage.removeItem(TOKEN_KEY)
+      setToken(null)
+    }
     setLoading(false)
   }, [])
 

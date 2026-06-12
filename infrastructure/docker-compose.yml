@@ -4,7 +4,6 @@
 # Cara pakai:
 #   1. docker compose up -d
 #   2. Hubungkan app lain ke network "traefik-public" + tambahkan labels
-#   3. Update cloudflared/config.yml untuk routing domain ke http://traefik:80
 #
 # Lihat README.md untuk panduan lengkap.
 
@@ -15,7 +14,7 @@ services:
     restart: unless-stopped
     ports:
       # Hanya Traefik yang expose port ke host
-      - "80:80"     # HTTP (cloudflared routing)
+      - "80:80"     # HTTP
       # - "443:443" # HTTPS — kalau pakai Let's Encrypt langsung (opsional)
     networks:
       - traefik-public

@@ -71,4 +71,4 @@ Buat CNAME record `app-kamu` → tunnel CNAME (biasanya `tunnel-id.cfargotunnel.
 - **Port internal** app bebas (3000, 8080, dll) — tidak perlu unik antar app
 - **Cuma Traefik** yang perlu port unik di host (80/443)
 - **Gunakan dev mode** dengan port host langsung untuk development (localhot)
-- **Production** hanya lewat Traefik + Tunnel
+- **Production** hanya lewat Traefik + Cloudflare Tunnel

@@ -1,5 +1,14 @@
 import { getAuthToken } from "./auth"
 
+export class ApiError extends Error {
+  status: number
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = "ApiError"
+    this.status = status
+  }
+}
+
 const API_BASE = "/api"
 
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
@@ -14,7 +23,7 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }))
-    throw new Error(err.error || `HTTP ${res.status}`)
+    throw new ApiError(err.error || `HTTP ${res.status}`, res.status)
   }
   return res.json()
 }

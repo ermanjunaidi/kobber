@@ -97,24 +97,16 @@ start:
 	docker compose --profile dev up -d
 	@echo "Dev services started"
 
-# Show logs
-logs:
-	docker compose logs -f
-
-# Stop all services
-down:
-	docker compose down
-
 # Start Cloudflare Tunnel standalone (tunnels to backend:8080 which serves frontend + API)
 tunnel:
 	docker compose run --rm cloudflared
 
 # Show Cloudflare Tunnel status
 tunnel-url:
-	@RUNNING=$$(docker compose ps cloudflared --format "{{.Status}}" 2>/dev/null | grep -c "Up"); \
+	@RUNNING=$$(docker ps --filter name=cloudflared --format "{{.Status}}" 2>/dev/null | grep -c "Up"); \
 	CONNECTED=$$(docker compose logs cloudflared 2>/dev/null | grep -c "Registered tunnel connection"); \
 	ORIGIN_ERRORS=$$(docker compose logs cloudflared 2>/dev/null | grep -c "Unable to reach the origin"); \
-	TRAEFIK=$$(docker ps --format '{{.Names}}' 2>/dev/null | grep -c "^traefik$$"); \
+	TRAEFIK=$$(docker ps --format '{{.Names}}' 2>/dev/null | grep -c "^traefik$$") || TRAEFIK=0; \
 	echo "  Tunnel    : https://raportns.my.id"; \
 	if [ "$$RUNNING" -gt 0 ] && [ "$$CONNECTED" -gt 0 ]; then \
 		echo "  Status    : Connected to Cloudflare ✅"; \
@@ -128,10 +120,18 @@ tunnel-url:
 			echo "  Backend   : ❌ Origin unreachable"; \
 		fi \
 	elif [ "$$RUNNING" -gt 0 ]; then \
-		echo "  Status    : Starting..."; \
+		echo "  Status    : Starting... (cek 'make logs' untuk detail)"; \
 	else \
 		echo "  Status    : Container not running. Run 'make prod-tunnel' or 'make up-tunnel' first."; \
 	fi
+
+# Show logs
+logs:
+	docker compose logs -f
+
+# Stop all services
+down:
+	docker compose down
 
 # Run backend locally (for development outside Docker)
 dev-backend:

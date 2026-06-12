@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react"
 import { useNavigate } from "react-router"
-import { api, type Stats, type NewsItem, type Member, type Donation, type ContactSubmission, type Campaign } from "@/lib/api"
+import { api, ApiError, type Stats, type NewsItem, type Member, type Donation, type ContactSubmission, type Campaign } from "@/lib/api"
 import { formatRp } from "@/lib/utils"
 import { useAuth } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
@@ -189,6 +189,11 @@ export default function Admin() {
       setStats(s)
       try { setCampaign(await api.campaign()) } catch {}
     } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        logout()
+        navigate("/admin/login", { replace: true })
+        return
+      }
       setError(e instanceof Error ? e.message : "Gagal memuat data")
     } finally {
       setLoading(false)

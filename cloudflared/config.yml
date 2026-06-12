@@ -1,5 +1,6 @@
 tunnel: 2e556e7e-ff20-459a-858d-a618e8e5e236
-credentials-file: /etc/cloudflared/credentials.json
+# Token tunnel disediakan via environment variable TUNNEL_TOKEN (lebih aman)
+# credentials-file: /etc/cloudflared/credentials.json
 
 # Semua traffic dari tunnel dikirim ke Traefik (port 80).
 # Traefik yang akan merouting ke masing-masing service berdasarkan Host header.
